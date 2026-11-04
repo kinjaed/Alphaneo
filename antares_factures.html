@@ -39,7 +39,10 @@
   th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
   th button { all: unset; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
   th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  tbody tr { cursor: pointer; }
   tbody tr:hover { background: var(--hover); }
+  tbody tr.sel, tbody tr.sel:hover { background: #ffe3bf; color: #1f2933; }
+  tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .empty { padding: 24px; text-align: center; color: var(--muted); }
   #msg { color: var(--muted); font-size: 12px; }
 </style>
@@ -54,6 +57,7 @@
   <hr>
   <h2>Liste des factures</h2>
   <div class="filters">
+    <label>Référence <select id="ref"></select></label>
     <label>Année <select id="year"></select></label>
     <label>Mois <select id="month"></select></label>
     <span id="msg"></span>
@@ -61,6 +65,7 @@
   <div class="wrap">
     <table>
       <thead><tr>
+        <th>Réf.</th>
         <th aria-sort="descending"><button id="sort" type="button" title="Inverser le tri">Date <span id="arrow">▼</span></button></th>
         <th>N° Facture</th>
         <th class="num">Montant</th>
@@ -76,59 +81,68 @@ const $ = id => document.getElementById(id);
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const fmtDate = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC" });
 
-let data = [];          // [{d: Date|null, num, montant}]
+let data = [];          // [{id, ref, d, num, montant}]
 let desc = true;        // tri date : décroissant par défaut
+let selectedId = null;  // ligne sélectionnée
 
 // --- Boutons : à configurer plus tard (ouvrir une page, lancer une action...) ---
 $("btnNew").onclick    = () => { /* TODO : Nouvelle facture */ };
 $("btnLocaux").onclick = () => { /* TODO : Locaux */ };
 
-grist.ready({
-  requiredAccess: "read table",
-  columns: [
-    { name: "Date",       title: "Date facture", type: "Date,DateTime" },
-    { name: "NumFacture", title: "N° facture",   type: "Any" },
-    { name: "Montant",    title: "Montant (TTC)", type: "Numeric,Int" }
-  ]
-});
+// Lecture directe de la table FACTURES : $REF, $Date_Facture, $Num_Facture, $Montant_TTC
+grist.ready({ requiredAccess: "read table" });
 
 grist.onRecords(records => {
-  const m = grist.mapColumnNames(records);
-  if (!m) { $("msg").textContent = "Associez les colonnes dans le panneau de configuration du widget."; data = []; render(); return; }
-  $("msg").textContent = "";
-  data = m.map(r => {
+  data = records.map(r => {
     let d = null;
-    if (typeof r.Date === "number") d = new Date(r.Date * 1000);
-    else if (r.Date) { const t = new Date(r.Date); if (!isNaN(t)) d = t; }
-    return { d, num: r.NumFacture ?? "", montant: Number(r.Montant) || 0 };
+    const v = r.Date_Facture;
+    if (typeof v === "number") d = new Date(v * 1000);
+    else if (v) { const t = new Date(v); if (!isNaN(t)) d = t; }
+    return { id: r.id, ref: r.REF ?? "", d, num: r.Num_Facture ?? "", montant: Number(r.Montant_TTC) || 0 };
   });
-  refreshYears();
+  refreshSelect("ref", [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
+  refreshSelect("year", [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a).map(String), "Toutes");
   render();
 });
 
-function refreshYears() {
-  const sel = $("year"), keep = sel.value;
-  const years = [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a);
-  sel.innerHTML = '<option value="">Toutes</option>' + years.map(y => `<option>${y}</option>`).join("");
-  if (years.map(String).includes(keep)) sel.value = keep;
+function refreshSelect(id, values, allLabel) {
+  const sel = $(id), keep = sel.value;
+  sel.innerHTML = `<option value="">${allLabel}</option>` + values.map(v => `<option>${v}</option>`).join("");
+  if (values.includes(keep)) sel.value = keep;
 }
 
 $("month").innerHTML = '<option value="">Tous</option>' + MOIS.map((n, i) => `<option value="${i}">${n}</option>`).join("");
-$("year").onchange = $("month").onchange = render;
+$("ref").onchange = $("year").onchange = $("month").onchange = render;
 $("sort").onclick = () => { desc = !desc; render(); };
 
+function select(id) {
+  selectedId = (selectedId === id) ? null : id;   // un second clic désélectionne
+  document.querySelectorAll("#rows tr[data-id]").forEach(tr => tr.classList.toggle("sel", +tr.dataset.id === selectedId));
+  if (selectedId !== null) { try { grist.setCursorPos({ rowId: selectedId }); } catch (e) {} }
+}
+
+$("rows").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-id]"); if (tr) select(+tr.dataset.id);
+});
+$("rows").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const tr = e.target.closest("tr[data-id]"); if (tr) { e.preventDefault(); select(+tr.dataset.id); }
+});
+
 function render() {
-  const y = $("year").value, mo = $("month").value;
+  const rf = $("ref").value, y = $("year").value, mo = $("month").value;
   const rows = data
-    .filter(r => (!y || (r.d && r.d.getUTCFullYear() == y)) && (mo === "" || (r.d && r.d.getUTCMonth() == mo)))
+    .filter(r => (!rf || String(r.ref) === rf) &&
+                 (!y || (r.d && r.d.getUTCFullYear() == y)) &&
+                 (mo === "" || (r.d && r.d.getUTCMonth() == mo)))
     .sort((a, b) => ((a.d?.getTime() ?? 0) - (b.d?.getTime() ?? 0)) * (desc ? -1 : 1) ||
                     String(a.num).localeCompare(String(b.num)) * (desc ? -1 : 1));
   $("arrow").textContent = desc ? "▼" : "▲";
   document.querySelector("th[aria-sort]").setAttribute("aria-sort", desc ? "descending" : "ascending");
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   $("rows").innerHTML = rows.length
-    ? rows.map(r => `<tr><td>${r.d ? fmtDate.format(r.d) : ""}</td><td>${esc(r.num)}</td><td class="num">${euro.format(r.montant)}</td></tr>`).join("")
-    : '<tr><td colspan="3" class="empty">Aucune facture pour cette période.</td></tr>';
+    ? rows.map(r => `<tr data-id="${r.id}" tabindex="0" class="${r.id === selectedId ? "sel" : ""}"><td>${esc(r.ref)}</td><td>${r.d ? fmtDate.format(r.d) : ""}</td><td>${esc(r.num)}</td><td class="num">${euro.format(r.montant)}</td></tr>`).join("")
+    : '<tr><td colspan="4" class="empty">Aucune facture pour cette période.</td></tr>';
 }
 </script>
 </body>
