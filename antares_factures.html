@@ -43,17 +43,26 @@
   .empty { padding: 24px; text-align: center; color: #6b7785; }
   #msg { color: var(--muted); font-size: 12px; }
   /* Fenêtre détail facture */
-  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+  #overlay, #ov-loc { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
              align-items: center; justify-content: center; padding: 16px; }
-  #overlay.open { display: flex; }
-  #dlg { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
+  #overlay.open, #ov-loc.open { display: flex; }
+  #dlg, #dlg-loc { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
          width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
-  #dlg header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  #dlg h3 { margin: 0; font-size: 18px; }
-  #dlg .wrap { flex: 0 1 auto; }
+  #dlg-loc { width: min(1250px, 100%); }
+  #dlg header, #dlg-loc header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #dlg h3, #dlg-loc h3 { margin: 0; font-size: 18px; }
+  #dlg .wrap, #dlg-loc .wrap { flex: 0 1 auto; }
+  #dlg-loc .wrap { overflow: auto; }
+  #dlg-loc th, #dlg-loc td { white-space: nowrap; }
+  .switch { display: inline-block; width: 34px; height: 18px; border-radius: 9px; background: #b8c0c8; position: relative; vertical-align: middle; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left .15s; }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { left: 18px; }
+  td.ctr, th.ctr { text-align: center; }
   #dlg tfoot td { font-weight: 600; background: var(--head); }
+  #dlg tfoot td:first-child { text-align: right; }
   #dlg tfoot tr:first-child td { border-top: 2px solid var(--line); }
-  #dlg-msg { color: var(--muted); font-size: 12px; }
+  #dlg-msg, #loc-msg { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -93,6 +102,19 @@
   <div id="dlg-msg"></div>
 </div></div>
 
+<div id="ov-loc"><div id="dlg-loc" role="dialog" aria-modal="true" aria-labelledby="loc-title">
+  <header><h3 id="loc-title">Locaux</h3><button id="loc-close" type="button" aria-label="Fermer">Fermer</button></header>
+  <div class="wrap"><table>
+    <thead><tr>
+      <th>Réf.</th><th>Nom commercial</th><th>Adresse</th><th>Code postal</th><th>Ville</th>
+      <th class="num">Loyer</th><th class="num">Provision TF</th><th class="num">Provision charges</th><th class="num">Montant HT</th>
+      <th class="ctr">TVA</th><th class="num">Taux TVA</th><th>Date bail</th>
+    </tr></thead>
+    <tbody id="loc-rows"></tbody>
+  </table></div>
+  <div id="loc-msg"></div>
+</div></div>
+
 <script>
 const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
               "Septembre","Octobre","Novembre","Décembre"];
@@ -106,7 +128,7 @@ let selectedId = null;  // ligne sélectionnée
 
 // --- Boutons : à configurer plus tard (ouvrir une page, lancer une action...) ---
 $("btnNew").onclick    = () => { /* TODO : Nouvelle facture */ };
-$("btnLocaux").onclick = () => { /* TODO : Locaux */ };
+
 
 // Lecture directe de la table FACTURES : $REF, $Date_Facture, $Num_Facture, $Montant_TTC
 // accès "full" nécessaire pour lire aussi la table Lignes_de_facture
@@ -152,8 +174,8 @@ $("rows").addEventListener("keydown", e => {
 
 // ---------- Fenêtre détail ----------
 const TABLE_LIGNES = "Lignes_de_facture";
-// Colonne de Lignes_de_facture qui pointe vers la facture (laisser "" pour détection auto)
-const COLONNE_LIEN = "";
+// Colonne de Lignes_de_facture qui pointe vers la facture
+const COLONNE_LIEN = "Num_Facture";
 const LIENS_POSSIBLES = ["Facture","Factures","REF","Ref","Facture_ID","ID_Facture","Id_Facture","Num_Facture"];
 const esc2 = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let lastFocus = null;
@@ -169,7 +191,7 @@ async function openInvoice(id) {
     const cols = Object.keys(t).filter(k => !["id", "manualSort"].includes(k) && !k.startsWith("gristHelper_"));
     const link = COLONNE_LIEN || LIENS_POSSIBLES.find(c => cols.includes(c));
     if (!link) throw new Error(`Colonne de lien introuvable dans ${TABLE_LIGNES} (colonnes : ${cols.join(", ")}). Renseignez COLONNE_LIEN.`);
-    const match = v => v === id || String(v) === String(inv.ref) || String(v) === String(inv.num);
+    const match = v => v === id || String(v) === String(inv.num);
     const lines = [];
     t.id.forEach((_, i) => { if (match(t[link][i])) lines.push({ d: t.Description[i] ?? "", m: Number(t.Montant[i]) || 0 }); });
     const total = lines.reduce((a, l) => a + l.m, 0);
@@ -196,6 +218,39 @@ $("rows").addEventListener("dblclick", e => {
   if (selectedId !== id) select(id);
   openInvoice(id);
 });
+
+// ---------- Fenêtre Locaux ----------
+const pct = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 2 });
+let locFocus = null;
+async function openLocaux() {
+  locFocus = document.activeElement;
+  $("loc-rows").innerHTML = ""; $("loc-msg").textContent = "Chargement…";
+  $("ov-loc").classList.add("open"); $("loc-close").focus();
+  try {
+    const t = await grist.docApi.fetchTable("Locaux");
+    const col = (k, i) => (t[k] ? t[k][i] : undefined);
+    const txt = v => esc2(v ?? "");
+    const eur = v => (v === null || v === undefined || v === "") ? "" : euro.format(Number(v) || 0);
+    const date = v => typeof v === "number" ? fmtDate.format(new Date(v * 1000)) : "";
+    const idx = t.id.map((_, i) => i).sort((a, b) =>
+      String(col("REF", a) ?? "").localeCompare(String(col("REF", b) ?? ""), "fr", { numeric: true }));
+    $("loc-rows").innerHTML = idx.length ? idx.map(i => {
+      const tva = !!col("TVA", i), tx = col("Taux_TVA", i);
+      return `<tr><td>${txt(col("REF", i))}</td><td>${txt(col("Nom_Commercial", i))}</td><td>${txt(col("Adresse", i))}</td>
+        <td>${txt(col("Code_postal", i))}</td><td>${txt(col("Ville", i))}</td>
+        <td class="num">${eur(col("Montant_loyer", i))}</td><td class="num">${eur(col("Provision_TF", i))}</td>
+        <td class="num">${eur(col("Provision_charges", i))}</td><td class="num">${eur(col("Montant_HT", i))}</td>
+        <td class="ctr"><span class="switch${tva ? " on" : ""}" role="switch" aria-checked="${tva}" aria-label="TVA"></span></td>
+        <td class="num">${typeof tx === "number" ? pct.format(tx) : ""}</td><td>${date(col("Date_bail", i))}</td></tr>`;
+    }).join("") : '<tr><td colspan="12" class="empty">Aucun local.</td></tr>';
+    $("loc-msg").textContent = "";
+  } catch (e) { $("loc-msg").textContent = "Erreur : " + (e.message || e); }
+}
+function closeLocaux() { $("ov-loc").classList.remove("open"); if (locFocus) locFocus.focus(); }
+$("btnLocaux").onclick = openLocaux;
+$("loc-close").onclick = closeLocaux;
+$("ov-loc").addEventListener("click", e => { if (e.target === $("ov-loc")) closeLocaux(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-loc").classList.contains("open")) closeLocaux(); });
 
 function render() {
   const rf = $("ref").value, y = $("year").value, mo = $("month").value;
