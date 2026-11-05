@@ -7,12 +7,9 @@
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 <style>
   :root {
-    --bg: #ffffff; --fg: #1f2933; --muted: #6b7785; --line: #d5dae0;
-    --head: #f1f3f5; --accent: #1f4e79; --hover: #f7f9fb;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #1b1f24; --fg: #e6e9ec; --muted: #98a2ad; --line: #373e46;
-            --head: #242a31; --accent: #7fb0dd; --hover: #20262c; }
+    --bg: #2e3338; --fg: #eceff1; --muted: #aab2ba; --line: #d5dae0;
+    --head: #f1f3f5; --accent: #1f4e79; --hover: #f7f9fb; --focus: #ffb35c;
+    --ink: #1f2933; --dark-line: #4a5157;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -21,30 +18,42 @@
          display: flex; flex-direction: column; gap: 10px; }
   h1 { font-size: 22px; margin: 0; letter-spacing: .04em; font-weight: 700; }
   h1 span { font-weight: 400; color: var(--muted); letter-spacing: 0; }
-  hr { width: 100%; border: 0; border-top: 1px solid var(--line); margin: 0; }
+  hr { width: 100%; border: 0; border-top: 1px solid var(--dark-line); margin: 0; }
   .bar { display: flex; justify-content: space-between; gap: 8px; }
-  button, select { font: inherit; color: var(--fg); background: var(--bg);
+  button, select { font: inherit; color: var(--ink); background: #fff;
          border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; }
   button { cursor: pointer; }
   button:hover { border-color: var(--accent); color: var(--accent); }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   h2 { font-size: 16px; margin: 4px 0 0; font-weight: 600; }
   .filters { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
   .filters label { display: flex; align-items: center; gap: 8px; }
-  .wrap { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 4px; }
+  .wrap { background: #fff; color: var(--ink); flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--line); border-radius: 4px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 7px 12px; text-align: left; border-bottom: 1px solid var(--line); }
   th { position: sticky; top: 0; background: var(--head); font-weight: 600; }
   th + th, td + td { border-left: 1px solid var(--line); }
   th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
   th button { all: unset; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
-  th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  th button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   tbody tr { cursor: pointer; }
   tbody tr:hover { background: var(--hover); }
   tbody tr.sel, tbody tr.sel:hover { background: #ffe3bf; color: #1f2933; }
-  tbody tr:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  .empty { padding: 24px; text-align: center; color: var(--muted); }
+  tbody tr:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .empty { padding: 24px; text-align: center; color: #6b7785; }
   #msg { color: var(--muted); font-size: 12px; }
+  /* Fenêtre détail facture */
+  #overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+             align-items: center; justify-content: center; padding: 16px; }
+  #overlay.open { display: flex; }
+  #dlg { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
+         width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+  #dlg header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #dlg h3 { margin: 0; font-size: 18px; }
+  #dlg .wrap { flex: 0 1 auto; }
+  #dlg tfoot td { font-weight: 600; background: var(--head); }
+  #dlg tfoot tr:first-child td { border-top: 2px solid var(--line); }
+  #dlg-msg { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -74,6 +83,16 @@
     </table>
   </div>
 
+<div id="overlay"><div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+  <header><h3 id="dlg-title"></h3><button id="dlg-close" type="button" aria-label="Fermer">Fermer</button></header>
+  <div class="wrap"><table>
+    <thead><tr><th>Description</th><th class="num">Montant</th></tr></thead>
+    <tbody id="dlg-rows"></tbody>
+    <tfoot id="dlg-foot"></tfoot>
+  </table></div>
+  <div id="dlg-msg"></div>
+</div></div>
+
 <script>
 const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
               "Septembre","Octobre","Novembre","Décembre"];
@@ -90,7 +109,8 @@ $("btnNew").onclick    = () => { /* TODO : Nouvelle facture */ };
 $("btnLocaux").onclick = () => { /* TODO : Locaux */ };
 
 // Lecture directe de la table FACTURES : $REF, $Date_Facture, $Num_Facture, $Montant_TTC
-grist.ready({ requiredAccess: "read table" });
+// accès "full" nécessaire pour lire aussi la table Lignes_de_facture
+grist.ready({ requiredAccess: "full" });
 
 grist.onRecords(records => {
   data = records.map(r => {
@@ -98,7 +118,8 @@ grist.onRecords(records => {
     const v = r.Date_Facture;
     if (typeof v === "number") d = new Date(v * 1000);
     else if (v) { const t = new Date(v); if (!isNaN(t)) d = t; }
-    return { id: r.id, ref: r.REF ?? "", d, num: r.Num_Facture ?? "", montant: Number(r.Montant_TTC) || 0 };
+    return { id: r.id, ref: r.REF ?? "", d, num: r.Num_Facture ?? "", montant: Number(r.Montant_TTC) || 0,
+             ht: Number(r.Montant_HT) || 0, tva: !!r.TVA };
   });
   refreshSelect("ref", [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
   refreshSelect("year", [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a).map(String), "Toutes");
@@ -127,6 +148,53 @@ $("rows").addEventListener("click", e => {
 $("rows").addEventListener("keydown", e => {
   if (e.key !== "Enter" && e.key !== " ") return;
   const tr = e.target.closest("tr[data-id]"); if (tr) { e.preventDefault(); select(+tr.dataset.id); }
+});
+
+// ---------- Fenêtre détail ----------
+const TABLE_LIGNES = "Lignes_de_facture";
+// Colonne de Lignes_de_facture qui pointe vers la facture (laisser "" pour détection auto)
+const COLONNE_LIEN = "";
+const LIENS_POSSIBLES = ["Facture","Factures","REF","Ref","Facture_ID","ID_Facture","Id_Facture","Num_Facture"];
+const esc2 = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let lastFocus = null;
+
+async function openInvoice(id) {
+  const inv = data.find(r => r.id === id); if (!inv) return;
+  lastFocus = document.activeElement;
+  $("dlg-title").textContent = `${inv.ref} – ${inv.num}`;
+  $("dlg-rows").innerHTML = ""; $("dlg-foot").innerHTML = ""; $("dlg-msg").textContent = "Chargement…";
+  $("overlay").classList.add("open"); $("dlg-close").focus();
+  try {
+    const t = await grist.docApi.fetchTable(TABLE_LIGNES);
+    const cols = Object.keys(t).filter(k => !["id", "manualSort"].includes(k) && !k.startsWith("gristHelper_"));
+    const link = COLONNE_LIEN || LIENS_POSSIBLES.find(c => cols.includes(c));
+    if (!link) throw new Error(`Colonne de lien introuvable dans ${TABLE_LIGNES} (colonnes : ${cols.join(", ")}). Renseignez COLONNE_LIEN.`);
+    const match = v => v === id || String(v) === String(inv.ref) || String(v) === String(inv.num);
+    const lines = [];
+    t.id.forEach((_, i) => { if (match(t[link][i])) lines.push({ d: t.Description[i] ?? "", m: Number(t.Montant[i]) || 0 }); });
+    const total = lines.reduce((a, l) => a + l.m, 0);
+    $("dlg-rows").innerHTML = lines.length
+      ? lines.map(l => `<tr><td>${esc2(l.d)}</td><td class="num">${euro.format(l.m)}</td></tr>`).join("")
+      : '<tr><td colspan="2" class="empty">Aucune ligne pour cette facture.</td></tr>';
+    const row = (label, v) => `<tr><td>${label}</td><td class="num">${euro.format(v)}</td></tr>`;
+    $("dlg-foot").innerHTML = inv.tva
+      ? row("Total HT", total) + row("TVA", inv.montant - inv.ht) + row("Total TTC", inv.montant)
+      : row("Total", total);
+    $("dlg-msg").textContent = "";
+  } catch (e) { $("dlg-msg").textContent = "Erreur : " + (e.message || e); }
+}
+function closeInvoice() {
+  $("overlay").classList.remove("open");
+  if (lastFocus) lastFocus.focus();
+}
+$("dlg-close").onclick = closeInvoice;
+$("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closeInvoice(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("overlay").classList.contains("open")) closeInvoice(); });
+$("rows").addEventListener("dblclick", e => {
+  const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+  const id = +tr.dataset.id;
+  if (selectedId !== id) select(id);
+  openInvoice(id);
 });
 
 function render() {
