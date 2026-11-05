@@ -62,6 +62,26 @@
   #dlg tfoot td { font-weight: 600; background: var(--head); }
   #dlg tfoot td:first-child { text-align: right; }
   #dlg tfoot tr:first-child td { border-top: 2px solid var(--line); }
+  .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  button.orange { background: #ffcf9e; border-color: #ffcf9e; color: var(--ink); font-weight: 600; }
+  button.orange:hover { background: #ffc28a; border-color: #ffc28a; color: var(--ink); }
+  button.orange:disabled { opacity: .45; cursor: not-allowed; }
+  #ov-form { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; padding: 16px; }
+  #ov-form.open { display: flex; }
+  #dlg-form { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
+              width: min(640px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+  #dlg-form header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #dlg-form h3 { margin: 0; font-size: 18px; }
+  #form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  #form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  #form-grid .full { grid-column: 1 / -1; }
+  #form-grid input { font: inherit; font-size: 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; width: 100%; }
+  #form-grid input.num { text-align: right; }
+  #form-grid input[readonly] { background: #e3e6e9; color: #6b7785; font-weight: 700; }
+  button.switch { padding: 0; border: 0; width: 34px; height: 18px; border-radius: 9px; background: #b8c0c8; }
+  #dlg-form .switch.on { background: #ffb35c; }
+  @media (max-width: 520px) { #form-grid { grid-template-columns: 1fr; } }
+  #form-msg { color: #ffb3a7; font-size: 12px; min-height: 1em; }
   #dlg-msg, #loc-msg { color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -107,12 +127,19 @@
   <div class="wrap"><table>
     <thead><tr>
       <th>Réf.</th><th>Nom commercial</th><th>Adresse</th><th>Code postal</th><th>Ville</th>
-      <th class="num">Loyer</th><th class="num">Provision TF</th><th class="num">Provision charges</th><th class="num">Montant HT</th>
+      <th>Loyer</th><th class="num">Provision TF</th><th class="num">Provision charges</th><th class="num">Montant HT</th>
       <th class="ctr">TVA</th><th class="num">Taux TVA</th><th>Date bail</th>
     </tr></thead>
     <tbody id="loc-rows"></tbody>
   </table></div>
-  <div id="loc-msg"></div>
+  <div class="actions"><span id="loc-msg"></span><button id="loc-edit" class="orange" type="button" disabled title="Sélectionnez d'abord un local">Modifier</button></div>
+</div></div>
+
+<div id="ov-form"><div id="dlg-form" role="dialog" aria-modal="true" aria-labelledby="form-title">
+  <header><h3 id="form-title"></h3></header>
+  <div id="form-grid"></div>
+  <div id="form-msg" role="alert"></div>
+  <div class="actions"><button id="form-cancel" type="button">Annuler</button><button id="form-save" class="orange" type="button">Enregistrer</button></div>
 </div></div>
 
 <script>
@@ -221,36 +248,123 @@ $("rows").addEventListener("dblclick", e => {
 
 // ---------- Fenêtre Locaux ----------
 const pct = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 2 });
-let locFocus = null;
+const CHAMPS = [
+  { k: "REF", l: "Réf.", t: "ro" },
+  { k: "Nom_Commercial", l: "Nom commercial", t: "text" },
+  { k: "Adresse", l: "Adresse", t: "text", full: true },
+  { k: "Code_postal", l: "Code postal", t: "text", num: true },
+  { k: "Ville", l: "Ville", t: "text" },
+  { k: "Montant_loyer", l: "Loyer (€)", t: "eur" },
+  { k: "Provision_TF", l: "Provision TF (€)", t: "eur" },
+  { k: "Provision_charges", l: "Provision charges (€)", t: "eur" },
+  { k: "Montant_HT", l: "Montant HT (€)", t: "eur" },
+  { k: "TVA", l: "TVA", t: "bool" },
+  { k: "Taux_TVA", l: "Taux TVA (%)", t: "pct" },
+  { k: "Date_bail", l: "Date bail", t: "date" }
+];
+let locT = null, locSel = null, locFocus = null, formFocus = null;
+
+async function loadLocaux() {
+  try {
+    locT = await grist.docApi.fetchTable("Locaux");
+    renderLoc();
+    $("loc-msg").textContent = "";
+  } catch (e) { $("loc-msg").textContent = "Erreur : " + (e.message || e); }
+}
+function renderLoc() {
+  const t = locT, col = (k, i) => (t[k] ? t[k][i] : undefined);
+  const txt = v => esc2(v ?? "");
+  const eur = v => (v === null || v === undefined || v === "") ? "" : euro.format(Number(v) || 0);
+  const date = v => typeof v === "number" ? fmtDate.format(new Date(v * 1000)) : "";
+  const idx = t.id.map((_, i) => i).sort((a, b) =>
+    String(col("REF", a) ?? "").localeCompare(String(col("REF", b) ?? ""), "fr", { numeric: true }));
+  if (!t.id.includes(locSel)) locSel = null;
+  $("loc-rows").innerHTML = idx.length ? idx.map(i => {
+    const tva = !!col("TVA", i), tx = col("Taux_TVA", i), id = t.id[i];
+    return `<tr data-id="${id}" tabindex="0" class="${id === locSel ? "sel" : ""}"><td>${txt(col("REF", i))}</td><td>${txt(col("Nom_Commercial", i))}</td><td>${txt(col("Adresse", i))}</td>
+      <td class="num">${txt(col("Code_postal", i))}</td><td>${txt(col("Ville", i))}</td>
+      <td class="num">${eur(col("Montant_loyer", i))}</td><td class="num">${eur(col("Provision_TF", i))}</td>
+      <td class="num">${eur(col("Provision_charges", i))}</td><td class="num">${eur(col("Montant_HT", i))}</td>
+      <td class="ctr"><span class="switch${tva ? " on" : ""}" role="switch" aria-checked="${tva}" aria-label="TVA"></span></td>
+      <td class="num">${typeof tx === "number" ? pct.format(tx) : ""}</td><td>${date(col("Date_bail", i))}</td></tr>`;
+  }).join("") : '<tr><td colspan="12" class="empty">Aucun local.</td></tr>';
+  $("loc-edit").disabled = locSel === null;
+}
+function selectLoc(id) {
+  locSel = (locSel === id) ? null : id;
+  document.querySelectorAll("#loc-rows tr[data-id]").forEach(tr => tr.classList.toggle("sel", +tr.dataset.id === locSel));
+  $("loc-edit").disabled = locSel === null;
+}
 async function openLocaux() {
   locFocus = document.activeElement;
   $("loc-rows").innerHTML = ""; $("loc-msg").textContent = "Chargement…";
   $("ov-loc").classList.add("open"); $("loc-close").focus();
-  try {
-    const t = await grist.docApi.fetchTable("Locaux");
-    const col = (k, i) => (t[k] ? t[k][i] : undefined);
-    const txt = v => esc2(v ?? "");
-    const eur = v => (v === null || v === undefined || v === "") ? "" : euro.format(Number(v) || 0);
-    const date = v => typeof v === "number" ? fmtDate.format(new Date(v * 1000)) : "";
-    const idx = t.id.map((_, i) => i).sort((a, b) =>
-      String(col("REF", a) ?? "").localeCompare(String(col("REF", b) ?? ""), "fr", { numeric: true }));
-    $("loc-rows").innerHTML = idx.length ? idx.map(i => {
-      const tva = !!col("TVA", i), tx = col("Taux_TVA", i);
-      return `<tr><td>${txt(col("REF", i))}</td><td>${txt(col("Nom_Commercial", i))}</td><td>${txt(col("Adresse", i))}</td>
-        <td>${txt(col("Code_postal", i))}</td><td>${txt(col("Ville", i))}</td>
-        <td class="num">${eur(col("Montant_loyer", i))}</td><td class="num">${eur(col("Provision_TF", i))}</td>
-        <td class="num">${eur(col("Provision_charges", i))}</td><td class="num">${eur(col("Montant_HT", i))}</td>
-        <td class="ctr"><span class="switch${tva ? " on" : ""}" role="switch" aria-checked="${tva}" aria-label="TVA"></span></td>
-        <td class="num">${typeof tx === "number" ? pct.format(tx) : ""}</td><td>${date(col("Date_bail", i))}</td></tr>`;
-    }).join("") : '<tr><td colspan="12" class="empty">Aucun local.</td></tr>';
-    $("loc-msg").textContent = "";
-  } catch (e) { $("loc-msg").textContent = "Erreur : " + (e.message || e); }
+  await loadLocaux();
 }
 function closeLocaux() { $("ov-loc").classList.remove("open"); if (locFocus) locFocus.focus(); }
 $("btnLocaux").onclick = openLocaux;
 $("loc-close").onclick = closeLocaux;
 $("ov-loc").addEventListener("click", e => { if (e.target === $("ov-loc")) closeLocaux(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-loc").classList.contains("open")) closeLocaux(); });
+$("loc-rows").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr) selectLoc(+tr.dataset.id); });
+$("loc-rows").addEventListener("keydown", e => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const tr = e.target.closest("tr[data-id]"); if (tr) { e.preventDefault(); selectLoc(+tr.dataset.id); }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("ov-loc").classList.contains("open") && !$("ov-form").classList.contains("open")) closeLocaux();
+});
+
+// ---------- Formulaire de modification ----------
+function openForm() {
+  if (locSel === null || !locT) return;
+  const i = locT.id.indexOf(locSel); if (i < 0) return;
+  formFocus = document.activeElement;
+  $("form-title").textContent = "Modifier le local – " + (locT.REF?.[i] ?? "");
+  $("form-msg").textContent = "";
+  $("form-grid").innerHTML = CHAMPS.map(c => {
+    const v = locT[c.k]?.[i], id = "f_" + c.k, cls = c.full ? "full" : "";
+    if (c.t === "bool")
+      return `<label class="${cls}">${c.l}<button type="button" id="${id}" class="switch${v ? " on" : ""}" role="switch" aria-checked="${!!v}" aria-label="${c.l}"></button></label>`;
+    let type = "text", val = v ?? "", extra = "", ic = c.num ? "num" : "";
+    if (c.t === "eur") { type = "number"; extra = ' step="0.01"'; ic = "num"; }
+    if (c.t === "pct") { type = "number"; extra = ' step="0.01"'; ic = "num"; val = typeof v === "number" ? Math.round(v * 10000) / 100 : ""; }
+    if (c.t === "date") { type = "date"; val = typeof v === "number" ? new Date(v * 1000).toISOString().slice(0, 10) : ""; }
+    if (c.t === "ro") extra = " readonly tabindex=\"-1\"";
+    return `<label class="${cls}">${c.l}<input id="${id}" class="${ic}" type="${type}"${extra} value="${esc2(val)}"></label>`;
+  }).join("");
+  $("ov-form").classList.add("open");
+  const first = $("form-grid").querySelector("input:not([readonly])"); if (first) first.focus();
+}
+function closeForm() { $("ov-form").classList.remove("open"); if (formFocus) formFocus.focus(); }
+
+async function saveForm() {
+  const fields = {};
+  for (const c of CHAMPS) {
+    if (c.t === "ro") continue;
+    const el = $("f_" + c.k);
+    if (c.t === "bool") fields[c.k] = el.classList.contains("on");
+    else if (c.t === "eur") fields[c.k] = el.value === "" ? null : Number(el.value);
+    else if (c.t === "pct") fields[c.k] = el.value === "" ? null : Number((Number(el.value) / 100).toFixed(6));
+    else if (c.t === "date") { const m = el.value.split("-").map(Number); fields[c.k] = el.value ? Date.UTC(m[0], m[1] - 1, m[2]) / 1000 : null; }
+    else fields[c.k] = el.value;
+  }
+  $("form-save").disabled = true; $("form-msg").textContent = "Enregistrement…";
+  try {
+    await grist.docApi.applyUserActions([["UpdateRecord", "Locaux", locSel, fields]]);
+    closeForm();
+    await loadLocaux();
+  } catch (e) { $("form-msg").textContent = "Erreur : " + (e.message || e); }
+  finally { $("form-save").disabled = false; }
+}
+$("loc-edit").onclick = openForm;
+$("form-cancel").onclick = closeForm;
+$("form-save").onclick = saveForm;
+$("ov-form").addEventListener("click", e => { if (e.target === $("ov-form")) closeForm(); });
+$("form-grid").addEventListener("click", e => {
+  const b = e.target.closest("button.switch"); if (!b) return;
+  const on = b.classList.toggle("on"); b.setAttribute("aria-checked", on);
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-form").classList.contains("open")) closeForm(); });
 
 function render() {
   const rf = $("ref").value, y = $("year").value, mo = $("month").value;
