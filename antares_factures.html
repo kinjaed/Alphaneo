@@ -93,6 +93,15 @@
   @media (max-width: 520px) { .fr.c2, .fr.c3 { grid-template-columns: 1fr; } }
   button.green { background: #7ccf8a; border-color: #7ccf8a; color: #10230f; font-weight: 600; }
   button.green:hover { background: #63bf73; border-color: #63bf73; color: #10230f; }
+  .ibtn { display: inline-flex; align-items: center; gap: 8px; }
+  button.blue { background: #6ea8e6; border-color: #6ea8e6; color: #0b1d33; font-weight: 600; }
+  button.blue:hover { background: #5497de; border-color: #5497de; color: #0b1d33; }
+  #new-totals { align-self: flex-end; display: flex; flex-direction: column; gap: 6px; min-width: 270px; }
+  .tot { display: grid; grid-template-columns: 1fr 140px; gap: 12px; align-items: center; }
+  .tot[hidden] { display: none; }
+  .tot label { text-align: right; }
+  .tot input { font: inherit; font-weight: 700; text-align: right; color: var(--ink); background: #e3e6e9;
+               border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; width: 100%; }
   #dlg-new table { table-layout: fixed; }
   #dlg-new { width: min(820px, 100%); }
   #new-grid { grid-template-columns: repeat(4, 1fr); }
@@ -113,8 +122,8 @@
   <h1>ANTARES <span>– Factures</span></h1>
   <hr>
   <div class="bar">
-    <button id="btnNew" type="button">Nouvelle facture</button>
-    <button id="btnLocaux" type="button">Locaux</button>
+    <button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button>
+    <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
   </div>
   <hr>
   <h2>Liste des factures</h2>
@@ -180,6 +189,11 @@
     <tbody id="new-rows"></tbody>
   </table></div>
   <div class="actions"><button id="new-add" class="green" type="button">Ajouter une ligne</button><span id="new-msg" role="alert"></span></div>
+  <div id="new-totals">
+    <div class="tot"><label for="t_ht">Total HT</label><input id="t_ht" readonly tabindex="-1"></div>
+    <div class="tot" id="t_tva_row" hidden><label id="t_tva_l" for="t_tva">TVA</label><input id="t_tva" readonly tabindex="-1"></div>
+    <div class="tot"><label for="t_ttc">Total TTC</label><input id="t_ttc" readonly tabindex="-1"></div>
+  </div>
   <div class="actions"><button id="new-cancel" type="button">Annuler</button><button id="new-save" class="orange" type="button">Enregistrer</button></div>
 </div></div>
 
@@ -474,6 +488,20 @@ function renderNewLines() {
      <td><input data-f="m" class="num" type="number" step="0.01" aria-label="Montant" value="${esc2(l.m)}"></td>
      <td><button type="button" data-del="${i}" aria-label="Supprimer la ligne" title="Supprimer la ligne">✕</button></td></tr>`).join("");
   refreshNewHeader();
+  updateNewTotals();
+}
+function updateNewTotals() {
+  const r2 = x => Math.round(x * 100) / 100;
+  const ht = r2(newLines.reduce((a, l) => a + (Number(l.m) || 0), 0));
+  const id = +$("n_ref").value, i = newLoc ? newLoc.id.indexOf(id) : -1;
+  const hasTva = i >= 0 && !!newLoc.TVA?.[i];
+  const taux = hasTva ? (Number(newLoc.Taux_TVA?.[i]) || 0) : 0;
+  const tva = hasTva ? r2(ht * taux) : 0;
+  $("t_ht").value = euro.format(ht);
+  $("t_tva_row").hidden = !hasTva;
+  $("t_tva_l").textContent = hasTva ? "TVA " + pct.format(taux) : "TVA";
+  $("t_tva").value = euro.format(tva);
+  $("t_ttc").value = euro.format(r2(ht + tva));
 }
 async function openNew() {
   newFocus = document.activeElement;
@@ -529,7 +557,7 @@ $("n_ref").onchange = onNewRef;
 $("n_date").oninput = onNewDate;
 $("n_num").oninput = refreshNewHeader;
 $("new-rows").addEventListener("input", e => {
-  const tr = e.target.closest("tr[data-i]"); if (tr && e.target.dataset.f) { const l = newLines[+tr.dataset.i]; l[e.target.dataset.f] = e.target.value; l.auto = false; }
+  const tr = e.target.closest("tr[data-i]"); if (tr && e.target.dataset.f) { const l = newLines[+tr.dataset.i]; l[e.target.dataset.f] = e.target.value; l.auto = false; updateNewTotals(); }
 });
 $("new-rows").addEventListener("click", e => {
   const b = e.target.closest("button[data-del]"); if (!b) return;
