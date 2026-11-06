@@ -93,6 +93,45 @@
   @media (max-width: 520px) { .fr.c2, .fr.c3 { grid-template-columns: 1fr; } }
   button.green { background: #7ccf8a; border-color: #7ccf8a; color: #10230f; font-weight: 600; }
   button.green:hover { background: #63bf73; border-color: #63bf73; color: #10230f; }
+  #main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; }
+  #left { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  #preview { min-height: 0; overflow: auto; container-type: inline-size; background: #262a2e;
+             border: 1px solid var(--dark-line); border-radius: 8px; padding: 12px; }
+  .pv-empty { color: var(--muted); text-align: center; padding: 48px 16px; border: 1px dashed var(--dark-line); border-radius: 6px; }
+  @media (max-width: 900px) {
+    body { overflow: auto; height: auto; }
+    #main { grid-template-columns: 1fr; }
+    #left .wrap { max-height: 60vh; }
+  }
+  /* Facture papier */
+  .paper { --pa: #1f4e79; position: relative; overflow: hidden; background: #fff; color: #1f2933; border-radius: 6px;
+           box-shadow: 0 10px 30px rgba(0,0,0,.4); aspect-ratio: 1 / 1.414; display: flex; flex-direction: column; gap: 1.5em;
+           padding: 3.2em 3em 2em; font-size: clamp(8px, 2.15cqw, 15px); line-height: 1.4; }
+  .paper::before { content: ""; position: absolute; inset: 0 0 auto 0; height: .8em; background: var(--pa); }
+  .p-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1em; }
+  .p-issuer { color: #52606d; line-height: 1.5; }
+  .p-issuer b { display: block; color: #1f2933; font-size: 1.3em; letter-spacing: .06em; margin-bottom: .2em; }
+  .p-title { font-size: 2.3em; font-weight: 700; letter-spacing: .14em; color: var(--pa); }
+  .p-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 2em; }
+  .p-meta { display: grid; grid-template-columns: auto 1fr; gap: .25em 1.2em; }
+  .p-meta dt { color: #7b8794; } .p-meta dd { margin: 0; font-weight: 600; }
+  .p-tenant { background: #f3f6f9; border-left: .3em solid var(--pa); border-radius: .3em; padding: .8em 1.1em; min-width: 40%; line-height: 1.5; }
+  .p-tenant b { display: block; font-size: 1.1em; }
+  .p-prop { color: #52606d; line-height: 1.6; }
+  .p-prop b { color: #1f2933; }
+  .p-table { width: 100%; border-collapse: collapse; }
+  .p-table th { text-align: left; font-size: .75em; letter-spacing: .1em; text-transform: uppercase; color: #7b8794;
+                padding: .6em .5em; border-bottom: 2px solid var(--pa); border-left: 0; background: none; position: static; }
+  .p-table th:last-child, .p-table td:last-child { text-align: right; }
+  .p-table td { padding: .7em .5em; border: 0; border-bottom: 1px solid #e6eaee; font-variant-numeric: tabular-nums; }
+  .p-table td + td, .p-table th + th { border-left: 0; }
+  .p-tot { margin-left: auto; width: 58%; display: grid; grid-template-columns: 1fr auto; gap: .35em 1.5em; font-variant-numeric: tabular-nums; }
+  .p-tot span:nth-child(even) { text-align: right; }
+  .p-tot .ttc { background: var(--pa); color: #fff; font-weight: 700; padding: .55em .8em; margin: .4em -.8em 0; }
+  .p-tot .ttc:nth-last-child(2) { border-radius: .3em 0 0 .3em; } .p-tot .ttc:last-child { border-radius: 0 .3em .3em 0; }
+  .p-pay h4 { margin: 0 0 .2em; font-size: .8em; letter-spacing: .1em; text-transform: uppercase; color: #7b8794; }
+  .p-foot { margin-top: auto; border-top: 1px solid #e1e5ea; padding-top: .8em; font-size: .74em; color: #7b8794; line-height: 1.55; }
+  .p-foot p { margin: 0 0 .3em; }
   .ibtn { display: inline-flex; align-items: center; gap: 8px; }
   button.blue { background: #6ea8e6; border-color: #6ea8e6; color: #0b1d33; font-weight: 600; }
   button.blue:hover { background: #5497de; border-color: #5497de; color: #0b1d33; }
@@ -126,6 +165,8 @@
     <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
   </div>
   <hr>
+  <div id="main">
+  <section id="left">
   <h2>Liste des factures</h2>
   <div class="filters">
     <label>Référence <select id="ref"></select></label>
@@ -143,6 +184,9 @@
       </tr></thead>
       <tbody id="rows"></tbody>
     </table>
+  </div>
+  </section>
+  <aside id="preview" aria-label="Aperçu de la facture"><div id="pv-inner"></div></aside>
   </div>
 
 <div id="overlay"><div id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
@@ -233,6 +277,7 @@ grist.onRecords(async records => {
   refreshSelect("ref", [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
   refreshSelect("year", [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a).map(String), "Toutes");
   render();
+  renderPreview();
 });
 
 function refreshSelect(id, values, allLabel) {
@@ -247,6 +292,7 @@ $("sort").onclick = () => { desc = !desc; render(); };
 
 function select(id) {
   selectedId = (selectedId === id) ? null : id;   // un second clic désélectionne
+  renderPreview();
   document.querySelectorAll("#rows tr[data-id]").forEach(tr => tr.classList.toggle("sel", +tr.dataset.id === selectedId));
   if (selectedId !== null) { try { grist.setCursorPos({ rowId: selectedId }); } catch (e) {} }
 }
@@ -567,6 +613,76 @@ $("new-rows").addEventListener("click", e => {
 });
 $("ov-new").addEventListener("click", e => { if (e.target === $("ov-new")) closeNew(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-new").classList.contains("open")) closeNew(); });
+
+// ---------- Aperçu de la facture papier ----------
+const EMETTEUR = {
+  nom: "SCI ANTARES", adresse: ["31 rue Julien Leneveu", "71380 Saint Marcel"],
+  mentions: [
+    "SCI au capital de 10 000 € · N° SIRET 881 257 133 00010 RCS Chalon-sur-Saône · N°TVA intra FR36881257133",
+    "Banque Crédit Mutuel · IBAN FR76 1027 8025 1800 0219 5440 313 · BIC CMCIFR2A",
+    "Code Banque 10278 · Guichet 02518 · Compte 00021954403 · Clé 13"
+  ],
+  indemnite: "Le montant de l'indemnité forfaitaire pour frais de recouvrement en cas de retard de paiement, est fixé à 40 € conformément à l'article 121-II de la loi n° 2012-387 du 22 mars 2012."
+};
+const PV_VIDE = '<div class="pv-empty">Sélectionnez une facture dans la liste pour afficher l\'aperçu.</div>';
+$("pv-inner").innerHTML = PV_VIDE;
+let pvToken = 0;
+
+async function renderPreview() {
+  const tok = ++pvToken, box = $("pv-inner");
+  const inv = data.find(r => r.id === selectedId);
+  if (!inv) { box.innerHTML = PV_VIDE; return; }
+  try {
+    const [lt, lg] = await Promise.all([grist.docApi.fetchTable("Locaux"), grist.docApi.fetchTable("Lignes_de_facture")]);
+    if (tok !== pvToken) return;                       // une sélection plus récente a pris le relais
+    let li = typeof inv.refRaw === "number" ? lt.id.indexOf(inv.refRaw) : -1;
+    if (li < 0) li = (lt.REF || []).findIndex(v => String(v) === String(inv.ref));
+    const loc = li >= 0 ? { nom: lt.Nom_Commercial?.[li], adr: lt.Adresse?.[li], cp: lt.Code_postal?.[li], ville: lt.Ville?.[li], taux: lt.Taux_TVA?.[li] } : {};
+    const lines = [];
+    // lien avec Lignes_de_facture par le N° Facture
+    lg.id.forEach((_, i) => { const v = lg.Num_Facture?.[i]; if (v === inv.id || String(v) === String(inv.num)) lines.push({ d: lg.Description?.[i] ?? "", m: Number(lg.Montant?.[i]) || 0 }); });
+    box.innerHTML = paperHtml(inv, loc, lines);
+  } catch (e) { box.innerHTML = '<div class="pv-empty">Erreur : ' + esc2(e.message || e) + '</div>'; }
+}
+
+function paperHtml(inv, loc, lines) {
+  const e = esc2, ht = inv.ht, ttc = inv.montant, tva = Math.round((ttc - ht) * 100) / 100;
+  let taux = typeof loc.taux === "number" && loc.taux ? loc.taux : (ht ? tva / ht : 0);
+  const adresseBien = [loc.adr, [loc.cp, loc.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  let periode = "";
+  if (inv.d) {
+    const y = inv.d.getUTCFullYear(), m = inv.d.getUTCMonth(), last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    periode = `Loyer commercial du 1er au ${last} ${MOIS[m].toLowerCase()} ${y}`;
+  }
+  const totals = inv.tva
+    ? `<span>MONTANT TOTAL HT</span><span>${euro.format(ht)}</span>
+       <span>TVA ${pct.format(taux)}</span><span>${euro.format(tva)}</span>
+       <span class="ttc">MONTANT TOTAL TTC</span><span class="ttc">${euro.format(ttc)}</span>`
+    : `<span>MONTANT TOTAL HT</span><span>${euro.format(ht)}</span>
+       <span class="ttc">MONTANT TOTAL</span><span class="ttc">${euro.format(ttc)}</span>`;
+  return `<article class="paper">
+    <div class="p-head">
+      <div class="p-issuer"><b>${e(EMETTEUR.nom)}</b>${EMETTEUR.adresse.map(e).join("<br>")}</div>
+      <div class="p-title">FACTURE</div>
+    </div>
+    <div class="p-row">
+      <dl class="p-meta" style="margin:0">
+        <dt>Facture N°</dt><dd>${e(inv.num)}</dd>
+        <dt>Référence</dt><dd>${e(inv.ref)}</dd>
+        <dt>Date</dt><dd>${inv.d ? fmtDate.format(inv.d) : ""}</dd>
+      </dl>
+      <div class="p-tenant"><b>${e(loc.nom ?? "")}</b>${e(loc.adr ?? "")}<br>${e([loc.cp, loc.ville].filter(Boolean).join(" "))}</div>
+    </div>
+    <div class="p-prop">${periode ? `<b>${e(periode)}</b><br>` : ""}${adresseBien ? `Adresse du bien : ${e(adresseBien)}` : ""}</div>
+    <table class="p-table">
+      <thead><tr><th>Désignation</th><th>Montant</th></tr></thead>
+      <tbody>${lines.length ? lines.map(l => `<tr><td>${e(l.d)}</td><td>${euro.format(l.m)}</td></tr>`).join("") : '<tr><td colspan="2" style="color:#7b8794">Aucune ligne de facture.</td></tr>'}</tbody>
+    </table>
+    <div class="p-tot">${totals}</div>
+    <div class="p-pay"><h4>Conditions de paiement</h4>Règlement à réception</div>
+    <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}<p>${e(EMETTEUR.indemnite)}</p></footer>
+  </article>`;
+}
 
 function render() {
   const rf = $("ref").value, y = $("year").value, mo = $("month").value;
