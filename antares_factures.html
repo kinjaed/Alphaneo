@@ -132,8 +132,26 @@
   .p-tot .ttc { background: var(--pa); color: #fff; font-weight: 700; padding: .55em .8em; margin: .4em -.8em 0; }
   .p-tot .ttc:nth-last-child(2) { border-radius: .3em 0 0 .3em; } .p-tot .ttc:last-child { border-radius: 0 .3em .3em 0; }
   .p-pay h4 { margin: 0 0 .2em; font-size: .8em; letter-spacing: .1em; text-transform: uppercase; color: #7b8794; }
-  .p-foot { margin-top: auto; border-top: 1px solid #e1e5ea; padding-top: .8em; font-size: .74em; color: #7b8794; line-height: 1.55; }
+  .p-foot { margin-top: 0; border-top: 1px solid #e1e5ea; padding-top: .8em; font-size: .74em; color: #7b8794; line-height: 1.55; }
   .p-foot p { margin: 0 0 .3em; }
+  .grp { display: flex; gap: 8px; }
+  button.gold { background: #e6b422; border-color: #e6b422; color: #2b2100; font-weight: 600; }
+  button.gold:hover { background: #d4a31a; border-color: #d4a31a; color: #2b2100; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .p-head { margin-bottom: 1.6em; }
+  .p-pay { margin-top: 1.6em; }
+  .p-indem { margin-top: auto; font-size: .85em; }
+  @media print {
+    @page { size: A4; margin: 0; }
+    body { background: #fff; padding: 0; display: block; height: auto; overflow: visible; }
+    body > *:not(#main) { display: none !important; }
+    #main { display: block; }
+    #left { display: none; }
+    #preview { border: 0; padding: 0; background: none; overflow: visible; container-type: normal; }
+    .paper { box-shadow: none; border-radius: 0; width: 210mm; height: 296mm; aspect-ratio: auto; font-size: 11pt;
+             -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pv-empty { display: none; }
+  }
   .ibtn { display: inline-flex; align-items: center; gap: 8px; }
   button.blue { background: #6ea8e6; border-color: #6ea8e6; color: #0b1d33; font-weight: 600; }
   button.blue:hover { background: #5497de; border-color: #5497de; color: #0b1d33; }
@@ -164,7 +182,7 @@
   <hr>
   <div class="bar">
     <button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button>
-    <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
+    <div class="grp"><button id="btnPrint" class="gold ibtn" type="button" disabled title="Sélectionnez d'abord une facture"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimer</button><button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button></div>
   </div>
   <hr>
   <div id="main">
@@ -629,10 +647,12 @@ const EMETTEUR = {
 const PV_VIDE = '<div class="pv-empty">Sélectionnez une facture dans la liste pour afficher l\'aperçu.</div>';
 $("pv-inner").innerHTML = PV_VIDE;
 let pvToken = 0;
+$("btnPrint").onclick = () => { try { window.print(); } catch (e) {} };   // n'imprime que la facture (voir @media print)
 
 async function renderPreview() {
   const tok = ++pvToken, box = $("pv-inner");
   const inv = data.find(r => r.id === selectedId);
+  $("btnPrint").disabled = true;
   if (!inv) { box.innerHTML = PV_VIDE; return; }
   try {
     const [lt, lg] = await Promise.all([grist.docApi.fetchTable("Locaux"), grist.docApi.fetchTable("Lignes_de_facture")]);
@@ -644,6 +664,7 @@ async function renderPreview() {
     // lien avec Lignes_de_facture par le N° Facture
     lg.id.forEach((_, i) => { const v = lg.Num_Facture?.[i]; if (v === inv.id || String(v) === String(inv.num)) lines.push({ d: lg.Description?.[i] ?? "", m: Number(lg.Montant?.[i]) || 0 }); });
     box.innerHTML = paperHtml(inv, loc, lines);
+    $("btnPrint").disabled = false;
   } catch (e) { box.innerHTML = '<div class="pv-empty">Erreur : ' + esc2(e.message || e) + '</div>'; }
 }
 
@@ -660,8 +681,7 @@ function paperHtml(inv, loc, lines) {
     ? `<span>MONTANT TOTAL HT</span><span>${euro.format(ht)}</span>
        <span>TVA ${pct.format(taux)}</span><span>${euro.format(tva)}</span>
        <span class="ttc">MONTANT TOTAL TTC</span><span class="ttc">${euro.format(ttc)}</span>`
-    : `<span>MONTANT TOTAL HT</span><span>${euro.format(ht)}</span>
-       <span class="ttc">MONTANT TOTAL</span><span class="ttc">${euro.format(ttc)}</span>`;
+    : `<span class="ttc">MONTANT TOTAL</span><span class="ttc">${euro.format(ttc)}</span>`;
   return `<article class="paper">
     <div class="p-head">
       <div class="p-issuer"><b>${e(EMETTEUR.nom)}</b>${EMETTEUR.adresse.map(e).join("<br>")}</div>
@@ -682,7 +702,8 @@ function paperHtml(inv, loc, lines) {
     </table>
     <div class="p-tot">${totals}</div>
     <div class="p-pay"><h4>Conditions de paiement</h4>Règlement à réception</div>
-    <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}<p>${e(EMETTEUR.indemnite)}</p></footer>
+    <div class="p-prop p-indem">${e(EMETTEUR.indemnite)}</div>
+    <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}</footer>
   </article>`;
 }
 
