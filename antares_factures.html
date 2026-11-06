@@ -93,15 +93,17 @@
   @media (max-width: 520px) { .fr.c2, .fr.c3 { grid-template-columns: 1fr; } }
   button.green { background: #7ccf8a; border-color: #7ccf8a; color: #10230f; font-weight: 600; }
   button.green:hover { background: #63bf73; border-color: #63bf73; color: #10230f; }
-  #main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; }
+  #main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
   #left { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
   #preview { min-height: 0; overflow: auto; container-type: inline-size; background: #262a2e;
              border: 1px solid var(--dark-line); border-radius: 8px; padding: 12px; }
   .pv-empty { color: var(--muted); text-align: center; padding: 48px 16px; border: 1px dashed var(--dark-line); border-radius: 6px; }
-  @media (max-width: 900px) {
+  @media (max-width: 800px) { th, td { padding: 6px 8px; } }
+  @media (max-width: 600px) {
     body { overflow: auto; height: auto; }
     #main { grid-template-columns: 1fr; }
-    #left .wrap { max-height: 60vh; }
+    #left .wrap { max-height: 50vh; }
+    #preview { min-height: 70vh; }
   }
   /* Facture papier */
   .paper { --pa: #1f4e79; position: relative; overflow: hidden; background: #fff; color: #1f2933; border-radius: 6px;
