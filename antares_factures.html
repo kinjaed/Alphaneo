@@ -80,13 +80,27 @@
   #form-grid input[readonly], #new-grid input[readonly] { background: #e3e6e9; color: #6b7785; font-weight: 700; }
   button.switch { padding: 0; border: 0; width: 34px; height: 18px; border-radius: 9px; background: #b8c0c8; }
   #dlg-form .switch.on { background: #ffb35c; }
-  #dlg-new { width: min(760px, 100%); }
+  #form-grid { display: flex; flex-direction: column; gap: 12px; }
+  .fr { display: grid; gap: 10px 16px; }
+  .fr.c1 { grid-template-columns: 1fr; }
+  .fr.c2 { grid-template-columns: 1fr 1fr; }
+  .fr.c3 { grid-template-columns: repeat(3, 1fr); }
+  .fr.tva { display: flex; align-items: flex-end; gap: 16px; }
+  .fr.tva label:nth-child(2) { width: 84px; }
+  .fr.tva label:last-child { margin-left: auto; width: min(200px, 40%); }
+  .fr.tva .switch { margin-bottom: 8px; }
+  hr.sep { margin: 6px 0; }
+  @media (max-width: 520px) { .fr.c2, .fr.c3 { grid-template-columns: 1fr; } }
+  button.green { background: #7ccf8a; border-color: #7ccf8a; color: #10230f; font-weight: 600; }
+  button.green:hover { background: #63bf73; border-color: #63bf73; color: #10230f; }
+  #dlg-new table { table-layout: fixed; }
+  #dlg-new { width: min(820px, 100%); }
   #new-grid { grid-template-columns: repeat(4, 1fr); }
   #dlg-new .wrap { flex: 0 1 auto; overflow: auto; }
   #new-rows td { padding: 4px 8px; }
   #new-rows td.ro { color: #6b7785; white-space: nowrap; }
   #new-rows input { font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; width: 100%; }
-  #new-rows input.num { text-align: right; min-width: 90px; }
+  #new-rows input.num { text-align: right; }
   #new-rows button { padding: 2px 8px; }
   #new-msg { color: #ffb3a7; font-size: 12px; min-height: 1em; }
   @media (max-width: 640px) { #new-grid { grid-template-columns: 1fr 1fr; } }
@@ -161,10 +175,11 @@
     <label>Facture<input id="n_fact" type="text" readonly tabindex="-1"></label>
   </div>
   <div class="wrap"><table>
-    <thead><tr><th>REF</th><th>Num Facture</th><th>Description</th><th class="num">Montant</th><th></th></tr></thead>
+    <colgroup><col style="width:64px"><col style="width:130px"><col><col style="width:130px"><col style="width:46px"></colgroup>
+    <thead><tr><th>REF</th><th>N° Facture</th><th>Description</th><th>Montant</th><th></th></tr></thead>
     <tbody id="new-rows"></tbody>
   </table></div>
-  <div class="actions"><button id="new-add" type="button">Ajouter une ligne</button><span id="new-msg" role="alert"></span></div>
+  <div class="actions"><button id="new-add" class="green" type="button">Ajouter une ligne</button><span id="new-msg" role="alert"></span></div>
   <div class="actions"><button id="new-cancel" type="button">Annuler</button><button id="new-save" class="orange" type="button">Enregistrer</button></div>
 </div></div>
 
@@ -352,7 +367,8 @@ function openForm() {
   formFocus = document.activeElement;
   $("form-title").textContent = "Modifier le local – " + (locT.REF?.[i] ?? "");
   $("form-msg").textContent = "";
-  $("form-grid").innerHTML = CHAMPS.map(c => {
+  const fld = k => {
+    const c = CHAMPS.find(x => x.k === k);
     const v = locT[c.k]?.[i], id = "f_" + c.k, cls = c.full ? "full" : "";
     if (c.t === "bool")
       return `<label class="${cls}">${c.l}<button type="button" id="${id}" class="switch${v ? " on" : ""}" role="switch" aria-checked="${!!v}" aria-label="${c.l}"></button></label>`;
@@ -363,7 +379,13 @@ function openForm() {
     if (c.t === "calc") { type = "number"; extra = ' step="0.01"'; ic = "num"; }
     if (c.t === "ro" || c.t === "calc") extra += " readonly tabindex=\"-1\"";
     return `<label class="${cls}">${c.l}<input id="${id}" class="${ic}" type="${type}"${extra} value="${esc2(val)}"></label>`;
-  }).join("");
+  };
+  const row = (cls, ...ks) => `<div class="fr ${cls}">${ks.map(fld).join("")}</div>`;
+  $("form-grid").innerHTML =
+    row("c2", "REF", "Nom_Commercial") + row("c1", "Adresse") + row("c2", "Code_postal", "Ville") +
+    row("c3", "Montant_loyer", "Provision_TF", "Provision_charges") +
+    row("tva", "TVA", "Taux_TVA", "Montant_HT") +
+    '<hr class="sep">' + row("c2", "Date_bail");
   $("ov-form").classList.add("open");
   const first = $("form-grid").querySelector("input:not([readonly])"); if (first) first.focus();
 }
@@ -410,7 +432,33 @@ const factureLabel = (dateStr, num) => {      // même logique que la formule de
   const [y, m] = dateStr.split("-");
   return "FA" + y.slice(-2) + "-" + m + "-" + String(Math.trunc(Number(num) || 0)).padStart(3, "0");
 };
-let newLines = [], newFocus = null;
+let newLines = [], newFocus = null, newLoc = null;
+const descFor = kind => {
+  if (kind === "tf") return "Provision sur taxe foncière";
+  if (kind === "charges") return "Provision sur charges";
+  const mm = +($("n_date").value.split("-")[1]) || 1;
+  return "Loyer du mois de " + MOIS[mm - 1].toLowerCase();
+};
+function onNewRef() {
+  // retire les anciennes lignes automatiques et les lignes vides, conserve les lignes saisies à la main
+  newLines = newLines.filter(l => !l.auto && (l.d !== "" || l.m !== ""));
+  const id = +$("n_ref").value, i = newLoc ? newLoc.id.indexOf(id) : -1;
+  if (id && i >= 0) {
+    const add = [];
+    [["Montant_loyer", "loyer"], ["Provision_TF", "tf"], ["Provision_charges", "charges"]].forEach(([k, kind]) => {
+      const v = newLoc[k]?.[i];
+      if (v !== null && v !== undefined && v !== "" && Number(v) !== 0) add.push({ auto: true, kind, d: descFor(kind), m: String(v) });
+    });
+    newLines = add.concat(newLines);
+  }
+  if (!newLines.length) newLines.push({ d: "", m: "" });
+  renderNewLines();
+}
+function onNewDate() {
+  let changed = false;
+  newLines.forEach(l => { if (l.auto && l.kind === "loyer") { const d = descFor("loyer"); if (l.d !== d) { l.d = d; changed = true; } } });
+  if (changed) renderNewLines(); else refreshNewHeader();
+}
 
 function refreshNewHeader() {
   const f = factureLabel($("n_date").value, $("n_num").value);
@@ -439,6 +487,7 @@ async function openNew() {
   $("ov-new").classList.add("open"); $("n_ref").focus();
   try {
     const lt = await grist.docApi.fetchTable("Locaux");
+    newLoc = lt;
     const idx = lt.id.map((_, i) => i).sort((a, b) => String(lt.REF[a] ?? "").localeCompare(String(lt.REF[b] ?? ""), "fr", { numeric: true }));
     $("n_ref").innerHTML = '<option value="">Sélectionner…</option>' + idx.map(i => `<option value="${lt.id[i]}">${esc2(lt.REF[i] ?? "")}</option>`).join("");
   } catch (e) { $("new-msg").textContent = "Erreur : " + (e.message || e); }
@@ -476,9 +525,11 @@ $("btnNew").onclick = openNew;
 $("new-cancel").onclick = closeNew;
 $("new-save").onclick = saveNew;
 $("new-add").onclick = () => { newLines.push({ d: "", m: "" }); renderNewLines(); const r = $("new-rows").lastElementChild; if (r) r.querySelector("input").focus(); };
-$("n_ref").onchange = $("n_date").oninput = $("n_num").oninput = refreshNewHeader;
+$("n_ref").onchange = onNewRef;
+$("n_date").oninput = onNewDate;
+$("n_num").oninput = refreshNewHeader;
 $("new-rows").addEventListener("input", e => {
-  const tr = e.target.closest("tr[data-i]"); if (tr && e.target.dataset.f) newLines[+tr.dataset.i][e.target.dataset.f] = e.target.value;
+  const tr = e.target.closest("tr[data-i]"); if (tr && e.target.dataset.f) { const l = newLines[+tr.dataset.i]; l[e.target.dataset.f] = e.target.value; l.auto = false; }
 });
 $("new-rows").addEventListener("click", e => {
   const b = e.target.closest("button[data-del]"); if (!b) return;
