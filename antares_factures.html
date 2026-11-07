@@ -197,7 +197,7 @@
   #dlg-pay .wrap { overflow: auto; }
   #dlg-pay td.cm { white-space: normal; }
   #dlg-pay td.nw { white-space: nowrap; }
-  #dlg-pay tfoot td { position: sticky; bottom: 0; font-weight: 700; background: var(--head); border-top: 2px solid var(--line); }
+  #dlg-pay tfoot td, #left tfoot td { position: sticky; bottom: 0; font-weight: 700; background: var(--head); border-top: 2px solid var(--line); }
   .filters input[type=date] { font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; }
   #dlg-pay .filters { gap: 8px 16px; }
   #padd-grid .full { grid-column: 1 / -1; }
@@ -205,13 +205,29 @@
   #padd-msg { color: #ffb3a7; font-size: 12px; min-height: 1em; }
   h1, h2, [role=dialog] h3 { color: var(--orange); }
   h1 span { color: var(--muted); }
+  button.violet { background: #ad86b7; border-color: #ad86b7; color: #1f1024; font-weight: 600; }
+  button.violet:hover { background: #9d74a8; border-color: #9d74a8; color: #1f1024; }
+  #pay-print-sheet { display: none; }
+  @media print {
+    body.pp > *:not(#pay-print-sheet) { display: none !important; }
+    body.pp > #pay-print-sheet { display: block !important; padding: 16mm; color: #1f2933; font: 11pt/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .pp-title { font-size: 20pt; font-weight: 700; color: #1f4e79; }
+    .pp-sub { font-size: 11pt; color: #52606d; margin-top: 2pt; }
+    .pp-table { width: 100%; border-collapse: collapse; margin-top: 12pt; }
+    .pp-table th { position: static; background: #f1f3f5; font-size: 9pt; text-transform: uppercase; letter-spacing: .06em; color: #52606d;
+                   border-bottom: 2px solid #1f4e79; border-left: 0; padding: 5pt 8pt; }
+    .pp-table td { border-left: 0; border-bottom: 1px solid #d5dae0; padding: 5pt 8pt; }
+    .pp-table .num { text-align: right; white-space: nowrap; }
+    .pp-table tfoot td { font-weight: 700; background: #f1f3f5; border-top: 2px solid #1f4e79; border-bottom: 0; }
+  }
 </style>
 </head>
 <body>
   <h1>ANTARES <span>– Factures</span></h1>
   <hr>
   <div class="bar">
-    <div class="grp"><button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button></div>
+    <div class="grp"><button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button><button id="btnDec" class="violet ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 20v-6M12 20v-7M16 20v-5M20 20v-6"/><path d="M5 11l4.5-4 4 3.5 5-5"/></svg>Décomptes</button></div>
     <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
   </div>
   <hr>
@@ -234,6 +250,7 @@
         <th class="num">Montant</th>
       </tr></thead>
       <tbody id="rows"></tbody>
+      <tfoot id="foot"></tfoot>
     </table>
   </div>
   </section>
@@ -302,7 +319,7 @@
 </div></div>
 
 <div id="ov-pay"><div id="dlg-pay" role="dialog" aria-modal="true" aria-labelledby="pay-title">
-  <header><h3 id="pay-title">Paiements</h3><button id="pay-close" type="button" aria-label="Fermer">Fermer</button></header>
+  <header><h3 id="pay-title">Paiements</h3><div class="grp"><button id="pay-print" class="gold ibtn" type="button" title="Imprimer la liste des paiements"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimer</button><button id="pay-close" type="button" aria-label="Fermer">Fermer</button></div></header>
   <div class="filters">
     <label>Référence <select id="p_ref"></select></label>
     <label>Date entre <input id="p_from" type="date"></label>
@@ -327,6 +344,8 @@
   <div id="padd-msg" role="alert"></div>
   <div class="actions"><button id="padd-cancel" type="button">Annuler</button><button id="padd-save" class="orange" type="button">Enregistrer</button></div>
 </div></div>
+
+<div id="pay-print-sheet"></div>
 
 <script>
 const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août",
@@ -741,7 +760,7 @@ $("btnFitW").onclick = () => setFit("w");
 $("btnFitH").onclick = () => setFit("h");
 
 // ---------- Paiements ----------
-let payRows = [], payFocus = null;
+let payRows = [], payFocus = null, payShown = { rows: [], total: 0, ref: "" }, payNames = new Map();
 async function loadPay() {
   const t = await grist.docApi.fetchTable("Paiements");
   const target = await refTarget("Paiements", "REF");     // REF est une colonne Référence : on affiche le texte
@@ -750,6 +769,10 @@ async function loadPay() {
   payRows = t.id.map((id, i) => { const v = t.REF?.[i];
     return { ref: String(labels ? (labels.get(v) ?? v) : (v ?? "")), d: typeof t.Date?.[i] === "number" ? t.Date[i] : null,
              m: Number(t.Montant?.[i]) || 0, c: t.Commentaires?.[i] ?? "" }; });
+  try {   // noms commerciaux (pour le sous-titre de l'impression)
+    const lt = await grist.docApi.fetchTable("Locaux");
+    payNames = new Map(lt.id.map((id, i) => [String(lt.REF?.[i]), lt.Nom_Commercial?.[i] ?? ""]));
+  } catch (e) { payNames = new Map(); }
   refreshSelect("p_ref", [...new Set(payRows.map(r => r.ref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
   renderPay();
 }
@@ -803,6 +826,22 @@ async function savePadd() {
   } catch (e) { msg("Erreur : " + (e.message || e)); }
   finally { $("padd-save").disabled = false; }
 }
+function printPay() {
+  const { rows, total, ref } = payShown, name = ref ? (payNames.get(ref) || "") : "";
+  const sub = ref ? `<div class="pp-sub">${esc2(ref)}${name ? " - " + esc2(name) : ""}</div>` : "";
+  const body = rows.length ? rows.map(r => `<tr><td>${esc2(r.ref)}</td><td>${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num">${euro.format(r.m)}</td><td>${esc2(r.c)}</td></tr>`).join("")
+                           : '<tr><td colspan="4">Aucun paiement.</td></tr>';
+  $("pay-print-sheet").innerHTML = `<div class="pp-title">Liste des paiements</div>${sub}
+    <table class="pp-table"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
+    <tbody>${body}</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">${euro.format(total)}</td><td></td></tr></tfoot></table>`;
+  const old = document.title, done = () => { document.body.classList.remove("pp"); document.title = old; };
+  document.title = "Liste des paiements";
+  document.body.classList.add("pp");
+  window.addEventListener("afterprint", done, { once: true });
+  try { window.print(); } catch (e) { done(); }
+}
+$("pay-print").onclick = printPay;
+$("btnDec").onclick = () => { /* TODO : fonction du bouton Décomptes */ };
 $("pay-add").onclick = openPadd;
 $("padd-cancel").onclick = closePadd;
 $("padd-save").onclick = savePadd;
@@ -819,6 +858,7 @@ function renderPay() {
     ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num nw">${euro.format(r.m)}</td><td class="cm">${esc2(r.c)}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">Aucun paiement.</td></tr>';
   const total = Math.round(rows.reduce((a, r) => a + r.m, 0) * 100) / 100;
+  payShown = { rows, total, ref };
   $("pay-foot").innerHTML = `<tr><td colspan="2">Total</td><td class="num nw">${euro.format(total)}</td><td></td></tr>`;
 }
 function closePay() { $("ov-pay").classList.remove("open"); if (payFocus) payFocus.focus(); }
@@ -993,6 +1033,10 @@ function render() {
   $("arrow").textContent = desc ? "▼" : "▲";
   document.querySelector("th[aria-sort]").setAttribute("aria-sort", desc ? "descending" : "ascending");
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // Somme de Montant affichée seulement si un filtre est appliqué
+  const filtered = !!(rf || y || from !== null || to !== null);
+  const sum = Math.round(rows.reduce((a, r) => a + r.montant, 0) * 100) / 100;
+  $("foot").innerHTML = filtered ? `<tr><td colspan="3">Total</td><td class="num">${euro.format(sum)}</td></tr>` : "";
   $("rows").innerHTML = rows.length
     ? rows.map(r => `<tr data-id="${r.id}" tabindex="0" class="${r.id === selectedId ? "sel" : ""}"><td>${esc(r.ref)}</td><td>${r.d ? fmtDate.format(r.d) : ""}</td><td>${esc(r.num)}</td><td class="num">${euro.format(r.montant)}</td></tr>`).join("")
     : '<tr><td colspan="4" class="empty">Aucune facture pour cette période.</td></tr>';
