@@ -601,6 +601,17 @@ async function openNew() {
 }
 function closeNew() { $("ov-new").classList.remove("open"); if (newFocus) newFocus.focus(); }
 
+// Table cible si Factures.REF est une colonne Référence (type "Ref:Table"), sinon null
+async function refTarget() {
+  try {
+    const tt = await grist.docApi.fetchTable("_grist_Tables");
+    const tc = await grist.docApi.fetchTable("_grist_Tables_column");
+    const tid = tt.id[tt.tableId.indexOf("Factures")];
+    const i = tc.id.findIndex((_, k) => tc.parentId[k] === tid && tc.colId[k] === "REF");
+    return i >= 0 && String(tc.type[i]).startsWith("Ref:") ? tc.type[i].slice(4) : null;
+  } catch (e) { return "Locaux"; }   // métadonnées illisibles : on suppose une référence vers Locaux
+}
+
 async function saveNew() {
   const msg = t => { $("new-msg").textContent = t; };
   const opt = $("n_ref").selectedOptions[0];
@@ -608,14 +619,22 @@ async function saveNew() {
   if (!$("n_date").value) return msg("Saisissez la date de facture.");
   if ($("n_num").value === "") return msg("Saisissez le numéro de facture.");
   const [y, m, d] = $("n_date").value.split("-").map(Number);
-  // Si Factures.REF est une colonne Référence (valeurs numériques), on envoie l'id du local, sinon son texte
-  const refIsRef = data.length === 0 || data.some(r => typeof r.refRaw === "number");
   const lines = newLines.filter(l => l.d.trim() !== "" || l.m !== "");
   $("new-save").disabled = true; msg("Enregistrement…");
   let id;
   try {
+    // Si Factures.REF est une colonne Référence, Grist attend l'identifiant de ligne, pas le texte
+    let refVal = opt.textContent;
+    const target = await refTarget();
+    if (target === "Locaux") refVal = +opt.value;
+    else if (target) {
+      const tt = await grist.docApi.fetchTable(target);
+      const k = (tt.REF || []).findIndex(v => String(v) === opt.textContent);
+      if (k < 0) throw new Error(`Référence « ${opt.textContent} » introuvable dans la table ${target}.`);
+      refVal = tt.id[k];
+    }
     const res = await grist.docApi.applyUserActions([["AddRecord", "Factures", null,
-      { REF: refIsRef ? +opt.value : opt.textContent, Date_Facture: Date.UTC(y, m - 1, d) / 1000, Num: Number($("n_num").value) }]]);
+      { REF: refVal, Date_Facture: Date.UTC(y, m - 1, d) / 1000, Num: Number($("n_num").value) }]]);
     id = res.retValues[0];
   } catch (e) { msg("Erreur : " + (e.message || e)); $("new-save").disabled = false; return; }
   try {
