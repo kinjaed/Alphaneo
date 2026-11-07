@@ -10,7 +10,7 @@
   :root {
     --bg: #2e3338; --fg: #eceff1; --muted: #aab2ba; --line: #d5dae0;
     --head: #f1f3f5; --accent: #1f4e79; --hover: #f7f9fb; --focus: #ffb35c;
-    --ink: #1f2933; --dark-line: #4a5157;
+    --ink: #1f2933; --orange: #ffa94d; --dark-line: #4a5157;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
@@ -67,17 +67,17 @@
   button.orange { background: #ffcf9e; border-color: #ffcf9e; color: var(--ink); font-weight: 600; }
   button.orange:hover { background: #ffc28a; border-color: #ffc28a; color: var(--ink); }
   button.orange:disabled { opacity: .45; cursor: not-allowed; }
-  #ov-form, #ov-new { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; padding: 16px; }
-  #ov-form.open, #ov-new.open { display: flex; }
-  #dlg-form, #dlg-new { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
+  #ov-form, #ov-new, #ov-padd { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; padding: 16px; }
+  #ov-form.open, #ov-new.open, #ov-padd.open { display: flex; }
+  #dlg-form, #dlg-new, #dlg-padd { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
               width: min(640px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
-  #dlg-form header, #dlg-new header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  #dlg-form h3, #dlg-new h3 { margin: 0; font-size: 18px; }
-  #form-grid, #new-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
-  #form-grid label, #new-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  #dlg-form header, #dlg-new header, #dlg-padd header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #dlg-form h3, #dlg-new h3, #dlg-padd h3 { margin: 0; font-size: 18px; }
+  #form-grid, #new-grid, #padd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  #form-grid label, #new-grid label, #padd-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   #form-grid .full { grid-column: 1 / -1; }
-  #form-grid input, #form-grid select, #new-grid input, #new-grid select { font: inherit; font-size: 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; width: 100%; }
-  #form-grid input.num { text-align: right; }
+  #form-grid input, #form-grid select, #new-grid input, #new-grid select, #padd-grid input, #padd-grid select { font: inherit; font-size: 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; width: 100%; }
+  #padd-grid input.num, #form-grid input.num { text-align: right; }
   #form-grid input[readonly], #new-grid input[readonly] { background: #e3e6e9; color: #6b7785; font-weight: 700; }
   button.switch { padding: 0; border: 0; width: 34px; height: 18px; border-radius: 9px; background: #b8c0c8; }
   #dlg-form .switch.on { background: #ffb35c; }
@@ -200,14 +200,19 @@
   #dlg-pay tfoot td { position: sticky; bottom: 0; font-weight: 700; background: var(--head); border-top: 2px solid var(--line); }
   .filters input[type=date] { font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; }
   #dlg-pay .filters { gap: 8px 16px; }
+  #padd-grid .full { grid-column: 1 / -1; }
+  #ov-padd #dlg-padd { width: min(520px, 100%); }
+  #padd-msg { color: #ffb3a7; font-size: 12px; min-height: 1em; }
+  h1, h2, [role=dialog] h3 { color: var(--orange); }
+  h1 span { color: var(--muted); }
 </style>
 </head>
 <body>
   <h1>ANTARES <span>– Factures</span></h1>
   <hr>
   <div class="bar">
-    <button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button>
-    <div class="grp"><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button><button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button></div>
+    <div class="grp"><button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button></div>
+    <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
   </div>
   <hr>
   <div id="main">
@@ -216,7 +221,8 @@
   <div class="filters">
     <label>Référence <select id="ref"></select></label>
     <label>Année <select id="year"></select></label>
-    <label>Mois <select id="month"></select></label>
+    <label>Date entre <input id="f_from" type="date"></label>
+    <label>et <input id="f_to" type="date"></label>
     <span id="msg"></span>
   </div>
   <div class="wrap">
@@ -307,7 +313,19 @@
     <tbody id="pay-rows"></tbody>
     <tfoot id="pay-foot"></tfoot>
   </table></div>
-  <div id="pay-msg"></div>
+  <div class="actions"><button id="pay-add" class="green" type="button">Ajouter un paiement</button><span id="pay-msg"></span></div>
+</div></div>
+
+<div id="ov-padd"><div id="dlg-padd" role="dialog" aria-modal="true" aria-labelledby="padd-title">
+  <header><h3 id="padd-title">Ajouter un paiement</h3></header>
+  <div id="padd-grid">
+    <label>REF *<select id="a_ref"></select></label>
+    <label>Date *<input id="a_date" type="date"></label>
+    <label>Montant (€) *<input id="a_mt" class="num" type="number" step="0.01"></label>
+    <label class="full">Commentaires<input id="a_com" type="text"></label>
+  </div>
+  <div id="padd-msg" role="alert"></div>
+  <div class="actions"><button id="padd-cancel" type="button">Annuler</button><button id="padd-save" class="orange" type="button">Enregistrer</button></div>
 </div></div>
 
 <script>
@@ -355,8 +373,8 @@ function refreshSelect(id, values, allLabel) {
   if (values.includes(keep)) sel.value = keep;
 }
 
-$("month").innerHTML = '<option value="">Tous</option>' + MOIS.map((n, i) => `<option value="${i}">${n}</option>`).join("");
-$("ref").onchange = $("year").onchange = $("month").onchange = render;
+$("ref").onchange = $("year").onchange = render;
+$("f_from").oninput = $("f_to").oninput = render;
 $("sort").onclick = () => { desc = !desc; render(); };
 
 function select(id) {
@@ -724,25 +742,72 @@ $("btnFitH").onclick = () => setFit("h");
 
 // ---------- Paiements ----------
 let payRows = [], payFocus = null;
+async function loadPay() {
+  const t = await grist.docApi.fetchTable("Paiements");
+  const target = await refTarget("Paiements", "REF");     // REF est une colonne Référence : on affiche le texte
+  let labels = null;
+  if (target) { const rt = await grist.docApi.fetchTable(target); labels = new Map(rt.id.map((id, i) => [id, rt.REF ? rt.REF[i] : id])); }
+  payRows = t.id.map((id, i) => { const v = t.REF?.[i];
+    return { ref: String(labels ? (labels.get(v) ?? v) : (v ?? "")), d: typeof t.Date?.[i] === "number" ? t.Date[i] : null,
+             m: Number(t.Montant?.[i]) || 0, c: t.Commentaires?.[i] ?? "" }; });
+  refreshSelect("p_ref", [...new Set(payRows.map(r => r.ref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
+  renderPay();
+}
 async function openPay() {
   payFocus = document.activeElement;
   $("p_from").value = $("p_to").value = "";
   $("p_ref").innerHTML = '<option value="">Toutes</option>';
   $("pay-rows").innerHTML = ""; $("pay-foot").innerHTML = ""; $("pay-msg").textContent = "Chargement…";
   $("ov-pay").classList.add("open"); $("pay-close").focus();
-  try {
-    const t = await grist.docApi.fetchTable("Paiements");
-    const target = await refTarget("Paiements", "REF");     // REF est une colonne Référence : on affiche le texte
-    let labels = null;
-    if (target) { const rt = await grist.docApi.fetchTable(target); labels = new Map(rt.id.map((id, i) => [id, rt.REF ? rt.REF[i] : id])); }
-    payRows = t.id.map((id, i) => { const v = t.REF?.[i];
-      return { ref: String(labels ? (labels.get(v) ?? v) : (v ?? "")), d: typeof t.Date?.[i] === "number" ? t.Date[i] : null,
-               m: Number(t.Montant?.[i]) || 0, c: t.Commentaires?.[i] ?? "" }; });
-    refreshSelect("p_ref", [...new Set(payRows.map(r => r.ref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
-    $("pay-msg").textContent = "";
-    renderPay();
-  } catch (e) { $("pay-msg").textContent = "Erreur : " + (e.message || e); }
+  try { await loadPay(); $("pay-msg").textContent = ""; }
+  catch (e) { $("pay-msg").textContent = "Erreur : " + (e.message || e); }
 }
+
+// ----- Ajouter un paiement -----
+let paddFocus = null;
+async function openPadd() {
+  paddFocus = document.activeElement;
+  const t = new Date();
+  $("a_date").value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+  $("a_mt").value = ""; $("a_com").value = ""; $("padd-msg").textContent = "";
+  $("a_ref").innerHTML = '<option value="">Sélectionner…</option>';
+  $("ov-padd").classList.add("open"); $("a_ref").focus();
+  try {
+    const lt = await grist.docApi.fetchTable("Locaux");
+    const idx = lt.id.map((_, i) => i).sort((a, b) => String(lt.REF[a] ?? "").localeCompare(String(lt.REF[b] ?? ""), "fr", { numeric: true }));
+    $("a_ref").innerHTML = '<option value="">Sélectionner…</option>' + idx.map(i => `<option value="${lt.id[i]}">${esc2(lt.REF[i] ?? "")}</option>`).join("");
+  } catch (e) { $("padd-msg").textContent = "Erreur : " + (e.message || e); }
+}
+function closePadd() { $("ov-padd").classList.remove("open"); if (paddFocus) paddFocus.focus(); }
+async function savePadd() {
+  const msg = t => { $("padd-msg").textContent = t; };
+  const opt = $("a_ref").selectedOptions[0];
+  if (!opt || !opt.value || !$("a_date").value || $("a_mt").value === "") return msg("Les champs marqués * sont obligatoires.");
+  const [y, m, d] = $("a_date").value.split("-").map(Number);
+  $("padd-save").disabled = true; msg("Enregistrement…");
+  try {
+    // Colonne REF de Paiements : identifiant de ligne si c'est une Référence, sinon texte
+    let refVal = opt.textContent;
+    const target = await refTarget("Paiements", "REF");
+    if (target === "Locaux") refVal = +opt.value;
+    else if (target) {
+      const tt = await grist.docApi.fetchTable(target);
+      const k = (tt.REF || []).findIndex(v => String(v) === opt.textContent);
+      if (k < 0) throw new Error(`Référence « ${opt.textContent} » introuvable dans la table ${target}.`);
+      refVal = tt.id[k];
+    }
+    await grist.docApi.applyUserActions([["AddRecord", "Paiements", null,
+      { REF: refVal, Date: Date.UTC(y, m - 1, d) / 1000, Montant: Number($("a_mt").value), Commentaires: $("a_com").value }]]);
+    closePadd();
+    await loadPay();
+  } catch (e) { msg("Erreur : " + (e.message || e)); }
+  finally { $("padd-save").disabled = false; }
+}
+$("pay-add").onclick = openPadd;
+$("padd-cancel").onclick = closePadd;
+$("padd-save").onclick = savePadd;
+$("ov-padd").addEventListener("click", e => { if (e.target === $("ov-padd")) closePadd(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-padd").classList.contains("open")) closePadd(); });
 function renderPay() {
   const ref = $("p_ref").value;
   const day = v => { if (!v) return null; const [y, m, d] = v.split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
@@ -761,7 +826,7 @@ $("btnPay").onclick = openPay;
 $("pay-close").onclick = closePay;
 $("p_ref").onchange = $("p_from").oninput = $("p_to").oninput = renderPay;
 $("ov-pay").addEventListener("click", e => { if (e.target === $("ov-pay")) closePay(); });
-document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-pay").classList.contains("open")) closePay(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-pay").classList.contains("open") && !$("ov-padd").classList.contains("open")) closePay(); });
 
 let pvCurrent = null;
 const setPvButtons = on => { $("btnPrint").disabled = $("btnPdf").disabled = !on; };
@@ -915,11 +980,14 @@ function paperHtml(inv, loc, lines) {
 }
 
 function render() {
-  const rf = $("ref").value, y = $("year").value, mo = $("month").value;
+  const rf = $("ref").value, y = $("year").value;
+  const day = v => { if (!v) return null; const [yy, mm, dd] = v.split("-").map(Number); return Date.UTC(yy, mm - 1, dd) / 1000; };
+  const from = day($("f_from").value), to = day($("f_to").value);      // champ vide = pas de limite
   const rows = data
     .filter(r => (!rf || String(r.ref) === rf) &&
                  (!y || (r.d && r.d.getUTCFullYear() == y)) &&
-                 (mo === "" || (r.d && r.d.getUTCMonth() == mo)))
+                 (from === null || (r.d && r.d.getTime() / 1000 >= from)) &&
+                 (to === null || (r.d && r.d.getTime() / 1000 < to + 86400)))
     .sort((a, b) => ((a.d?.getTime() ?? 0) - (b.d?.getTime() ?? 0)) * (desc ? -1 : 1) ||
                     String(a.num).localeCompare(String(b.num)) * (desc ? -1 : 1));
   $("arrow").textContent = desc ? "▼" : "▲";
