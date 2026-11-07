@@ -44,15 +44,15 @@
   .empty { padding: 24px; text-align: center; color: #6b7785; }
   #msg { color: var(--muted); font-size: 12px; }
   /* Fenêtre détail facture */
-  #overlay, #ov-loc { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+  #overlay, #ov-loc, #ov-pay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
              align-items: center; justify-content: center; padding: 16px; }
-  #overlay.open, #ov-loc.open { display: flex; }
-  #dlg, #dlg-loc { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
+  #overlay.open, #ov-loc.open, #ov-pay.open { display: flex; }
+  #dlg, #dlg-loc, #dlg-pay { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
          width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
   #dlg-loc { width: min(1250px, 100%); }
-  #dlg header, #dlg-loc header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  #dlg h3, #dlg-loc h3 { margin: 0; font-size: 18px; }
-  #dlg .wrap, #dlg-loc .wrap { flex: 0 1 auto; }
+  #dlg header, #dlg-loc header, #dlg-pay header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #dlg h3, #dlg-loc h3, #dlg-pay h3 { margin: 0; font-size: 18px; }
+  #dlg .wrap, #dlg-loc .wrap, #dlg-pay .wrap { flex: 0 1 auto; }
   #dlg-loc .wrap { overflow: auto; }
   #dlg-loc th, #dlg-loc td { white-space: nowrap; }
   .switch { display: inline-block; width: 34px; height: 18px; border-radius: 9px; background: #b8c0c8; position: relative; vertical-align: middle; }
@@ -108,8 +108,8 @@
   }
   /* Facture papier */
   .paper { --pa: #1f4e79; position: relative; overflow: hidden; background: #fff; color: #1f2933; border-radius: 6px;
-           box-shadow: 0 10px 30px rgba(0,0,0,.4); aspect-ratio: 1 / 1.414; display: flex; flex-direction: column; gap: 1.5em;
-           padding: 3.2em 3em 2em; font-size: clamp(8px, 2.15cqw, 15px); line-height: 1.4; }
+           box-shadow: 0 10px 30px rgba(0,0,0,.4); width: 100%; min-height: 100%; display: flex; flex-direction: column; gap: 1.5em;
+           padding: 3.2em 3em 2em; font-size: max(8px, 2.15cqw); line-height: 1.4; }
   .paper::before { content: ""; position: absolute; inset: 0 0 auto 0; height: .8em; background: var(--pa); }
   .p-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1em; }
   .p-issuer { color: #52606d; line-height: 1.5; }
@@ -155,6 +155,8 @@
     #main, #right { display: block; }
     #left, .pv-bar { display: none; }
     #preview { border: 0; padding: 0; background: none; overflow: visible; container-type: normal; }
+    #pv-inner { display: block !important; height: auto !important; }
+    .sheet { width: 210mm !important; height: 296mm !important; aspect-ratio: auto !important; container-type: normal; margin: 0 !important; }
     .paper { box-shadow: none; border-radius: 0; width: 210mm; height: 296mm; aspect-ratio: auto; font-size: 11pt;
              -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .pv-empty { display: none; }
@@ -181,7 +183,23 @@
   @media (max-width: 640px) { #new-grid { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 520px) { #form-grid { grid-template-columns: 1fr; } }
   #form-msg { color: #ffb3a7; font-size: 12px; min-height: 1em; }
-  #dlg-msg, #loc-msg { color: var(--muted); font-size: 12px; }
+  #dlg-msg, #loc-msg, #pay-msg { color: var(--muted); font-size: 12px; }
+  .sheet { container-type: inline-size; width: 100%; aspect-ratio: 1 / 1.414; }
+  #preview.fit-h { overflow: auto; }
+  #preview.fit-h #pv-inner { height: 100%; display: flex; }
+  #preview.fit-h .sheet { width: auto; height: 100%; flex: 0 0 auto; margin: 0 auto; }
+  button.ic { padding: 6px 9px; display: inline-flex; }
+  button.ic.active { background: #cfe3f8; border-color: #6ea8e6; }
+  .vsep { width: 1px; align-self: stretch; background: var(--dark-line); margin: 2px 4px; }
+  button.teal { background: #5ec8b8; border-color: #5ec8b8; color: #06231f; font-weight: 600; }
+  button.teal:hover { background: #49b8a7; border-color: #49b8a7; color: #06231f; }
+  #ov-pay #dlg-pay { width: min(920px, 100%); }
+  #dlg-pay .wrap { overflow: auto; }
+  #dlg-pay td.cm { white-space: normal; }
+  #dlg-pay td.nw { white-space: nowrap; }
+  #dlg-pay tfoot td { position: sticky; bottom: 0; font-weight: 700; background: var(--head); border-top: 2px solid var(--line); }
+  .filters input[type=date] { font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; }
+  #dlg-pay .filters { gap: 8px 16px; }
 </style>
 </head>
 <body>
@@ -189,7 +207,7 @@
   <hr>
   <div class="bar">
     <button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button>
-    <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
+    <div class="grp"><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button><button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button></div>
   </div>
   <hr>
   <div id="main">
@@ -215,6 +233,9 @@
   </section>
   <div id="right">
     <div class="pv-bar"><span id="pv-msg" role="alert"></span>
+      <button id="btnFitW" class="ic active" type="button" aria-pressed="true" aria-label="Ajuster à la largeur" title="Ajuster à la largeur"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5v14M21 5v14M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3"/></svg></button>
+      <button id="btnFitH" class="ic" type="button" aria-pressed="false" aria-label="Ajuster à la hauteur" title="Ajuster à la hauteur"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h14M5 21h14M12 7v10M9 10l3-3 3 3M9 14l3 3 3-3"/></svg></button>
+      <span class="vsep" role="separator" aria-orientation="vertical"></span>
       <button id="btnPdf" class="red ibtn" type="button" disabled title="Exporter la facture en PDF"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><text x="12" y="18" font-size="6.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">PDF</text></svg>PDF</button>
       <button id="btnPrint" class="gold ibtn" type="button" disabled title="Sélectionnez d'abord une facture"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimer</button>
     </div>
@@ -272,6 +293,21 @@
     <div class="tot"><label for="t_ttc">Total TTC</label><input id="t_ttc" readonly tabindex="-1"></div>
   </div>
   <div class="actions"><button id="new-cancel" type="button">Annuler</button><button id="new-save" class="orange" type="button">Enregistrer</button></div>
+</div></div>
+
+<div id="ov-pay"><div id="dlg-pay" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+  <header><h3 id="pay-title">Paiements</h3><button id="pay-close" type="button" aria-label="Fermer">Fermer</button></header>
+  <div class="filters">
+    <label>Référence <select id="p_ref"></select></label>
+    <label>Date entre <input id="p_from" type="date"></label>
+    <label>et <input id="p_to" type="date"></label>
+  </div>
+  <div class="wrap"><table>
+    <thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
+    <tbody id="pay-rows"></tbody>
+    <tfoot id="pay-foot"></tfoot>
+  </table></div>
+  <div id="pay-msg"></div>
 </div></div>
 
 <script>
@@ -602,12 +638,12 @@ async function openNew() {
 function closeNew() { $("ov-new").classList.remove("open"); if (newFocus) newFocus.focus(); }
 
 // Table cible si Factures.REF est une colonne Référence (type "Ref:Table"), sinon null
-async function refTarget() {
+async function refTarget(table = "Factures", col = "REF") {
   try {
     const tt = await grist.docApi.fetchTable("_grist_Tables");
     const tc = await grist.docApi.fetchTable("_grist_Tables_column");
-    const tid = tt.id[tt.tableId.indexOf("Factures")];
-    const i = tc.id.findIndex((_, k) => tc.parentId[k] === tid && tc.colId[k] === "REF");
+    const tid = tt.id[tt.tableId.indexOf(table)];
+    const i = tc.id.findIndex((_, k) => tc.parentId[k] === tid && tc.colId[k] === col);
     return i >= 0 && String(tc.type[i]).startsWith("Ref:") ? tc.type[i].slice(4) : null;
   } catch (e) { return "Locaux"; }   // métadonnées illisibles : on suppose une référence vers Locaux
 }
@@ -679,6 +715,54 @@ const EMETTEUR = {
 const PV_VIDE = '<div class="pv-empty">Sélectionnez une facture dans la liste pour afficher l\'aperçu.</div>';
 $("pv-inner").innerHTML = PV_VIDE;
 let pvToken = 0;
+function setFit(mode) {
+  $("preview").classList.toggle("fit-h", mode === "h");
+  [["btnFitW", "w"], ["btnFitH", "h"]].forEach(([id, m]) => { $(id).classList.toggle("active", m === mode); $(id).setAttribute("aria-pressed", m === mode); });
+}
+$("btnFitW").onclick = () => setFit("w");
+$("btnFitH").onclick = () => setFit("h");
+
+// ---------- Paiements ----------
+let payRows = [], payFocus = null;
+async function openPay() {
+  payFocus = document.activeElement;
+  $("p_from").value = $("p_to").value = "";
+  $("p_ref").innerHTML = '<option value="">Toutes</option>';
+  $("pay-rows").innerHTML = ""; $("pay-foot").innerHTML = ""; $("pay-msg").textContent = "Chargement…";
+  $("ov-pay").classList.add("open"); $("pay-close").focus();
+  try {
+    const t = await grist.docApi.fetchTable("Paiements");
+    const target = await refTarget("Paiements", "REF");     // REF est une colonne Référence : on affiche le texte
+    let labels = null;
+    if (target) { const rt = await grist.docApi.fetchTable(target); labels = new Map(rt.id.map((id, i) => [id, rt.REF ? rt.REF[i] : id])); }
+    payRows = t.id.map((id, i) => { const v = t.REF?.[i];
+      return { ref: String(labels ? (labels.get(v) ?? v) : (v ?? "")), d: typeof t.Date?.[i] === "number" ? t.Date[i] : null,
+               m: Number(t.Montant?.[i]) || 0, c: t.Commentaires?.[i] ?? "" }; });
+    refreshSelect("p_ref", [...new Set(payRows.map(r => r.ref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
+    $("pay-msg").textContent = "";
+    renderPay();
+  } catch (e) { $("pay-msg").textContent = "Erreur : " + (e.message || e); }
+}
+function renderPay() {
+  const ref = $("p_ref").value;
+  const day = v => { if (!v) return null; const [y, m, d] = v.split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
+  const from = day($("p_from").value), to = day($("p_to").value);       // champ vide = pas de limite
+  const rows = payRows.filter(r => (!ref || r.ref === ref) && (from === null || (r.d !== null && r.d >= from)) &&
+                                   (to === null || (r.d !== null && r.d < to + 86400)))
+                      .sort((a, b) => (b.d ?? 0) - (a.d ?? 0));
+  $("pay-rows").innerHTML = rows.length
+    ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num nw">${euro.format(r.m)}</td><td class="cm">${esc2(r.c)}</td></tr>`).join("")
+    : '<tr><td colspan="4" class="empty">Aucun paiement.</td></tr>';
+  const total = Math.round(rows.reduce((a, r) => a + r.m, 0) * 100) / 100;
+  $("pay-foot").innerHTML = `<tr><td colspan="2">Total</td><td class="num nw">${euro.format(total)}</td><td></td></tr>`;
+}
+function closePay() { $("ov-pay").classList.remove("open"); if (payFocus) payFocus.focus(); }
+$("btnPay").onclick = openPay;
+$("pay-close").onclick = closePay;
+$("p_ref").onchange = $("p_from").oninput = $("p_to").oninput = renderPay;
+$("ov-pay").addEventListener("click", e => { if (e.target === $("ov-pay")) closePay(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-pay").classList.contains("open")) closePay(); });
+
 let pvCurrent = null;
 const setPvButtons = on => { $("btnPrint").disabled = $("btnPdf").disabled = !on; };
 const fileBase = c => `${c.inv.num}_${c.inv.ref}`.replace(/[\\/:*?"<>|]+/g, "-");   // ex. FA26-11-042_A1
@@ -805,7 +889,7 @@ function paperHtml(inv, loc, lines) {
        <span>TVA ${pct.format(taux)}</span><span>${euro.format(tva)}</span>
        <span class="ttc">MONTANT TOTAL TTC</span><span class="ttc">${euro.format(ttc)}</span>`
     : `<span class="ttc">MONTANT TOTAL</span><span class="ttc">${euro.format(ttc)}</span>`;
-  return `<article class="paper">
+  return `<div class="sheet"><article class="paper">
     <div class="p-head">
       <div class="p-issuer"><b>${e(EMETTEUR.nom)}</b>${EMETTEUR.adresse.map(e).join("<br>")}</div>
       <div class="p-title">FACTURE</div>
@@ -827,7 +911,7 @@ function paperHtml(inv, loc, lines) {
     <div class="p-pay"><h4>Conditions de paiement</h4>Règlement à réception</div>
     <div class="p-prop p-indem">${e(EMETTEUR.indemnite)}</div>
     <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}</footer>
-  </article>`;
+  </article></div>`;
 }
 
 function render() {
