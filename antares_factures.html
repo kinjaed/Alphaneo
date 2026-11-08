@@ -234,6 +234,16 @@
   #dec-recap-wrap { flex: none !important; overflow: visible !important; }
   #dec-recap-wrap[hidden] { display: none; }
   #dec-recap tr.strong td { font-weight: 700; }
+  #dec-tenant { line-height: 1.5; }
+  #dec-tenant[hidden] { display: none; }
+  #dec-tenant b { display: block; font-size: 16px; }
+  #dec-tenant span { color: var(--muted); }
+  @media print {
+    .dp-name { font-size: 14pt; font-weight: 700; }
+    .dp-adr { font-size: 11pt; margin-top: 2pt; }
+    .dp-per { font-size: 9.5pt; color: #7b8794; margin-top: 3pt; }
+    .pp-table .strong td { font-weight: 700; }
+  }
 </style>
 </head>
 <body>
@@ -250,8 +260,8 @@
   <div class="filters">
     <label>Référence <select id="ref"></select></label>
     <label>Année <select id="year"></select></label>
-    <label>Date entre <input id="f_from" type="date"></label>
-    <label>et <input id="f_to" type="date"></label>
+    <label>Période du <input id="f_from" type="date"></label>
+    <label>au <input id="f_to" type="date"></label>
     <span id="msg"></span>
   </div>
   <div class="wrap">
@@ -335,8 +345,8 @@
   <header><h3 id="pay-title">Paiements</h3><div class="grp"><button id="pay-print" class="gold ibtn" type="button" title="Imprimer la liste des paiements"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimer</button><button id="pay-close" type="button" aria-label="Fermer">Fermer</button></div></header>
   <div class="filters">
     <label>Référence <select id="p_ref"></select></label>
-    <label>Date entre <input id="p_from" type="date"></label>
-    <label>et <input id="p_to" type="date"></label>
+    <label>Période du <input id="p_from" type="date"></label>
+    <label>au <input id="p_to" type="date"></label>
   </div>
   <div class="wrap"><table>
     <thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
@@ -359,8 +369,14 @@
 </div></div>
 
 <div id="ov-dec"><div id="dlg-dec" role="dialog" aria-modal="true" aria-labelledby="dec-title">
-  <header><h3 id="dec-title">Décompte</h3><button id="dec-close" type="button" aria-label="Fermer">Fermer</button></header>
-  <div class="filters"><label>Référence <select id="d_ref"></select></label></div>
+  <header><h3 id="dec-title">Décompte</h3><div class="grp"><button id="dec-print" class="gold ibtn" type="button" disabled title="Sélectionnez d'abord une référence"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimer</button><button id="dec-close" type="button" aria-label="Fermer">Fermer</button></div></header>
+  <div class="filters">
+    <label>Référence <select id="d_ref"></select></label>
+    <label>Période du <input id="d_from" type="date"></label>
+    <label>au <input id="d_to" type="date"></label>
+  </div>
+  <hr class="sep">
+  <div id="dec-tenant" hidden><b id="dec-name"></b><span id="dec-adr"></span></div>
   <div class="wrap"><table>
     <thead><tr><th>Date</th><th>N° pièce</th><th>Désignation</th><th class="num">Débit (€)</th><th class="num">Crédit (€)</th><th class="num">Solde (€)</th></tr></thead>
     <tbody id="dec-rows"></tbody>
@@ -943,16 +959,18 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-pay"
 
 // ---------- Décompte (factures + avoirs + paiements d'une référence) ----------
 const num2 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-let decEvents = [], decFocus = null;
+let decEvents = [], decFocus = null, decLoc = null, decView = null;
 const r2c = x => Math.round(x * 100) / 100;
 
 async function openDec() {
   decFocus = document.activeElement;
+  $("d_from").value = $("d_to").value = "";
   $("d_ref").innerHTML = "<option value=\"\"></option>";
   $("dec-rows").innerHTML = ""; $("dec-recap-wrap").hidden = true; $("dec-msg").textContent = "Chargement…";
   $("ov-dec").classList.add("open"); $("d_ref").focus();
   try {
     const [lt, lf, la] = await Promise.all([grist.docApi.fetchTable("Locaux"), grist.docApi.fetchTable("Lignes_de_facture"), grist.docApi.fetchTable("Lignes_d_avoir")]);
+    decLoc = lt;
     await Promise.all([loadAvoirs(), loadPay()]);
     // première ligne (description) de chaque facture / avoir, retrouvée par le N° de facture / d'avoir
     const first = (t, link) => { const m = new Map(); (t.id || []).forEach((_, i) => { const k = String(t[link]?.[i]); if (!m.has(k)) m.set(k, t.Description?.[i] ?? ""); }); return m; };
@@ -961,7 +979,7 @@ async function openDec() {
     const day = d => d ? d.getTime() / 1000 : 0;
     decEvents = [
       ...dataF.map(r => ({ ref: r.ref, t: day(r.d), k: 0, num: r.num, desc: doc(r, mf), debit: r.montant, credit: 0 })),
-      ...dataA.map(r => ({ ref: r.ref, t: day(r.d), k: 2, num: r.num, desc: doc(r, ma), debit: 0, credit: r.montant, avoir: true })),
+      ...dataA.map(r => ({ ref: r.ref, t: day(r.d), k: 2, num: r.num, desc: (doc(r, ma) ? "Avoir : " + doc(r, ma) : "Avoir"), debit: 0, credit: r.montant, avoir: true })),
       ...payRows.map(r => ({ ref: r.ref, t: r.d ?? 0, k: 1, num: "", desc: (String(r.c).trim() || "Règlement"), debit: 0, credit: r.m, reglement: true }))
     ];
     const refs = (lt.REF || []).map(String).filter(Boolean).sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
@@ -972,29 +990,68 @@ async function openDec() {
 }
 function renderDec() {
   const ref = $("d_ref").value;
+  $("dec-print").disabled = !ref; decView = null;
   if (!ref) {
+    $("dec-tenant").hidden = true;
     $("dec-rows").innerHTML = '<tr><td colspan="6" class="empty">Sélectionnez une référence pour afficher le décompte.</td></tr>';
     $("dec-recap-wrap").hidden = true; return;
   }
+  // locataire : nom commercial + adresse complète
+  const li = decLoc ? (decLoc.REF || []).findIndex(v => String(v) === ref) : -1;
+  const g = k => (li >= 0 ? (decLoc[k]?.[li] ?? "") : "");
+  const name = String(g("Nom_Commercial")), adr = [g("Adresse"), [g("Code_postal"), g("Ville")].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  $("dec-name").textContent = name; $("dec-adr").textContent = adr; $("dec-tenant").hidden = !(name || adr);
+
+  // période (champ vide = pas de limite)
+  const day = v => { if (!v) return null; const [y, m, d] = v.split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
+  const from = day($("d_from").value), to = day($("d_to").value);
   // chronologique (le plus ancien en haut) ; à date égale : factures, règlements, avoirs
-  const ev = decEvents.filter(e => String(e.ref) === ref).sort((a, b) => a.t - b.t || a.k - b.k || String(a.num).localeCompare(String(b.num)));
+  const ev = decEvents.filter(e => String(e.ref) === ref && (from === null || (e.t && e.t >= from)) && (to === null || (e.t && e.t < to + 86400)))
+    .sort((a, b) => a.t - b.t || a.k - b.k || String(a.num).localeCompare(String(b.num)));
   let solde = 0;
+  const rows = ev.map(e => { solde = r2c(solde + e.debit - e.credit); return { ...e, solde }; });
   const cell = v => v ? num2.format(v) : "";
-  $("dec-rows").innerHTML = ev.length ? ev.map(e => {
-    solde = r2c(solde + e.debit - e.credit);
-    return `<tr><td class="nw">${e.t ? fmtDate.format(new Date(e.t * 1000)) : ""}</td><td class="nw">${esc2(e.num)}</td><td>${esc2(e.desc)}</td>
-      <td class="num nw">${cell(e.debit)}</td><td class="num nw">${cell(e.credit)}</td><td class="num nw">${num2.format(solde)}</td></tr>`;
-  }).join("") : '<tr><td colspan="6" class="empty">Aucune pièce pour cette référence.</td></tr>';
+  $("dec-rows").innerHTML = rows.length ? rows.map(e =>
+    `<tr><td class="nw">${e.t ? fmtDate.format(new Date(e.t * 1000)) : ""}</td><td class="nw">${esc2(e.num)}</td><td>${esc2(e.desc)}</td>
+      <td class="num nw">${cell(e.debit)}</td><td class="num nw">${cell(e.credit)}</td><td class="num nw">${num2.format(e.solde)}</td></tr>`).join("")
+    : '<tr><td colspan="6" class="empty">Aucune pièce pour cette période.</td></tr>';
   const sum = f => r2c(ev.filter(f).reduce((a, e) => a + e.debit + e.credit, 0));
   const fact = sum(e => !e.avoir && !e.reglement), av = sum(e => e.avoir), rg = sum(e => e.reglement);
   const sg = v => euro.format(v === 0 ? 0 : v);
-  $("dec-recap").innerHTML =
-    `<tr><td>Total facturé</td><td class="num">${sg(fact)}</td></tr>
-     <tr><td>Total des avoirs</td><td class="num">${sg(-av)}</td></tr>
-     <tr><td>Total des règlements</td><td class="num">${sg(-rg)}</td></tr>
-     <tr class="strong"><td>SOLDE RESTANT DÛ</td><td class="num">${sg(r2c(fact - av - rg))}</td></tr>`;
+  const recap = [["Total facturé", sg(fact)], ["Total des avoirs", sg(-av)], ["Total des règlements", sg(-rg)], ["SOLDE RESTANT DÛ", sg(r2c(fact - av - rg)), true]];
+  $("dec-recap").innerHTML = recap.map(([l, v, st]) => `<tr${st ? ' class="strong"' : ""}><td>${l}</td><td class="num">${v}</td></tr>`).join("");
   $("dec-recap-wrap").hidden = false;
+  // période affichée à l'impression : début vide = pièce la plus ancienne du décompte, fin vide = aujourd'hui
+  const dated = rows.map(e => e.t).filter(Boolean);
+  const t = new Date(), today = Date.UTC(t.getFullYear(), t.getMonth(), t.getDate()) / 1000;
+  const d1 = from ?? (dated.length ? Math.min(...dated) : null), d2 = to ?? today;
+  decView = { ref, name, adr, rows, recap, d1, d2 };
 }
+
+// Impression avec aperçu (aperçu du navigateur) : nom, adresse, période, tableau et récapitulatif
+function printSheet(html, title) {
+  $("pay-print-sheet").innerHTML = html;
+  const old = document.title, done = () => { document.body.classList.remove("pp"); document.title = old; };
+  document.title = title;
+  document.body.classList.add("pp");
+  window.addEventListener("afterprint", done, { once: true });
+  try { window.print(); } catch (e) { done(); }
+}
+function printDec() {
+  const v = decView; if (!v) return;
+  const fd = x => x === null ? "…" : fmtDate.format(new Date(x * 1000));
+  const cell = x => x ? num2.format(x) : "";
+  const body = v.rows.length ? v.rows.map(e => `<tr><td>${e.t ? fd(e.t) : ""}</td><td>${esc2(e.num)}</td><td>${esc2(e.desc)}</td>
+      <td class="num">${cell(e.debit)}</td><td class="num">${cell(e.credit)}</td><td class="num">${num2.format(e.solde)}</td></tr>`).join("")
+    : '<tr><td colspan="6">Aucune pièce pour cette période.</td></tr>';
+  printSheet(`<div class="dp-name">${esc2(v.name)}</div><div class="dp-adr">${esc2(v.adr)}</div>
+    <div class="dp-per">Période du ${fd(v.d1)} au ${fd(v.d2)}</div>
+    <table class="pp-table"><thead><tr><th>Date</th><th>N° pièce</th><th>Désignation</th><th class="num">Débit (€)</th><th class="num">Crédit (€)</th><th class="num">Solde (€)</th></tr></thead><tbody>${body}</tbody></table>
+    <table class="pp-table"><thead><tr><th>Récapitulatif</th><th class="num">Montant</th></tr></thead>
+    <tbody>${v.recap.map(([l, x, st]) => `<tr${st ? ' class="strong"' : ""}><td>${l}</td><td class="num">${x}</td></tr>`).join("")}</tbody></table>`, "Décompte " + v.ref);
+}
+$("dec-print").onclick = printDec;
+$("d_from").oninput = $("d_to").oninput = renderDec;
 function closeDec() { $("ov-dec").classList.remove("open"); if (decFocus) decFocus.focus(); }
 $("dec-close").onclick = closeDec;
 $("d_ref").onchange = renderDec;
