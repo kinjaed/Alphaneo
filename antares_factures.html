@@ -88,7 +88,14 @@
   .fr.c3 { grid-template-columns: repeat(3, 1fr); }
   .fr.tva { display: flex; align-items: flex-end; gap: 16px; }
   .fr.tva label:nth-child(2) { width: 84px; }
-  .fr.tva label:last-child { margin-left: auto; width: min(200px, 40%); }
+  .fr.tva label:nth-child(3) { width: 150px; }
+  .fr.tva label:last-child { width: min(170px, 34%); }
+  .fr.tva .vsep { margin-left: auto; align-self: stretch; }
+  .fr.r1 { grid-template-columns: 60px 1fr 150px; }
+  .fr.bail { grid-template-columns: 170px 1px 1fr 1fr 1fr; align-items: end; }
+  .fr.bail .vsep { align-self: stretch; margin: 0 2px; }
+  #form-grid .vsep { background: #6b747c; }
+  #form-grid #f_Montant_HT { border: 1.5px solid #000; }
   .fr.tva .switch { margin-bottom: 8px; }
   hr.sep { margin: 6px 0; }
   @media (max-width: 520px) { .fr.c2, .fr.c3 { grid-template-columns: 1fr; } }
@@ -326,6 +333,7 @@
       <th>Réf.</th><th>Nom commercial</th><th>Adresse</th><th>Code postal</th><th>Ville</th>
       <th>Loyer</th><th class="num">Provision TF</th><th class="num">Provision charges</th><th class="num">Montant HT</th>
       <th class="ctr">TVA</th><th class="num">Taux TVA</th><th>Date bail</th>
+      <th class="num">ILC</th><th class="num">ILC année</th><th class="num">ILC trimestre</th><th>SIREN</th><th>N° TVA</th>
     </tr></thead>
     <tbody id="loc-rows"></tbody>
   </table></div>
@@ -576,7 +584,12 @@ const CHAMPS = [
   { k: "Montant_HT", l: "Montant HT (€) – calculé", t: "calc" },
   { k: "TVA", l: "TVA", t: "bool" },
   { k: "Taux_TVA", l: "Taux TVA (%)", t: "pct" },
-  { k: "Date_bail", l: "Date bail", t: "date" }
+  { k: "Date_bail", l: "Date bail", t: "date" },
+  { k: "SIREN", l: "N° SIREN", t: "auto" },
+  { k: "N_TVA", l: "N° TVA", t: "text" },
+  { k: "ILC", l: "ILC", t: "auto", num: true, step: "any" },
+  { k: "ILC_Annee", l: "ILC année", t: "auto", num: true, step: "1" },
+  { k: "ILC_Trimestre", l: "ILC trimestre", t: "auto" }
 ];
 let locT = null, locSel = null, locFocus = null, formFocus = null;
 
@@ -592,6 +605,8 @@ function renderLoc() {
   const txt = v => esc2(v ?? "");
   const eur = v => (v === null || v === undefined || v === "") ? "" : euro.format(Number(v) || 0);
   const date = v => typeof v === "number" ? fmtDate.format(new Date(v * 1000)) : "";
+  const ilcFmt = v => typeof v === "number" ? v.toLocaleString("fr-FR", { maximumFractionDigits: 4 }) : txt(v);
+  const plain = v => v === null || v === undefined ? "" : esc2(String(v));      // année / trimestre : sans séparateur de milliers
   const idx = t.id.map((_, i) => i).sort((a, b) =>
     String(col("REF", a) ?? "").localeCompare(String(col("REF", b) ?? ""), "fr", { numeric: true }));
   if (!t.id.includes(locSel)) locSel = null;
@@ -602,8 +617,10 @@ function renderLoc() {
       <td class="num">${eur(col("Montant_loyer", i))}</td><td class="num">${eur(col("Provision_TF", i))}</td>
       <td class="num">${eur(col("Provision_charges", i))}</td><td class="num">${eur(col("Montant_HT", i))}</td>
       <td class="ctr"><span class="switch${tva ? " on" : ""}" role="switch" aria-checked="${tva}" aria-label="TVA"></span></td>
-      <td class="num">${typeof tx === "number" ? pct.format(tx) : ""}</td><td>${date(col("Date_bail", i))}</td></tr>`;
-  }).join("") : '<tr><td colspan="12" class="empty">Aucun local.</td></tr>';
+      <td class="num">${typeof tx === "number" ? pct.format(tx) : ""}</td><td>${date(col("Date_bail", i))}</td>
+      <td class="num">${ilcFmt(col("ILC", i))}</td><td class="num">${plain(col("ILC_Annee", i))}</td><td class="num">${plain(col("ILC_Trimestre", i))}</td>
+      <td class="nw">${esc2(fmtSiren(col("SIREN", i)))}</td><td class="nw">${txt(col("N_TVA", i))}</td></tr>`;
+  }).join("") : '<tr><td colspan="17" class="empty">Aucun local.</td></tr>';
   $("loc-edit").disabled = locSel === null;
 }
 function selectLoc(id) {
@@ -638,6 +655,7 @@ function openForm() {
   $("form-title").textContent = "Modifier le local – " + (locT.REF?.[i] ?? "");
   $("form-msg").textContent = "";
   const fld = k => {
+    if (k === "|") return '<span class="vsep" aria-hidden="true"></span>';
     const c = CHAMPS.find(x => x.k === k);
     const v = locT[c.k]?.[i], id = "f_" + c.k, cls = c.full ? "full" : "";
     if (c.t === "bool")
@@ -647,22 +665,32 @@ function openForm() {
     if (c.t === "pct") { type = "number"; extra = ' step="0.01"'; ic = "num"; val = typeof v === "number" ? Math.round(v * 10000) / 100 : ""; }
     if (c.t === "date") { type = "date"; val = typeof v === "number" ? new Date(v * 1000).toISOString().slice(0, 10) : ""; }
     if (c.t === "calc") { type = "number"; extra = ' step="0.01"'; ic = "num"; }
+    if (c.t === "auto" && c.num) { type = "number"; extra = ` step="${c.step}"`; }
     if (c.t === "ro" || c.t === "calc") extra += " readonly tabindex=\"-1\"";
     return `<label class="${cls}">${c.l}<input id="${id}" class="${ic}" type="${type}"${extra} value="${esc2(val)}"></label>`;
   };
   const row = (cls, ...ks) => `<div class="fr ${cls}">${ks.map(fld).join("")}</div>`;
   $("form-grid").innerHTML =
-    row("c2", "REF", "Nom_Commercial") + row("c1", "Adresse") + row("c2", "Code_postal", "Ville") +
+    row("r1", "REF", "Nom_Commercial", "SIREN") + row("c1", "Adresse") + row("c2", "Code_postal", "Ville") +
     row("c3", "Montant_loyer", "Provision_TF", "Provision_charges") +
-    row("tva", "TVA", "Taux_TVA", "Montant_HT") +
-    '<hr class="sep">' + row("c2", "Date_bail");
+    row("tva", "TVA", "Taux_TVA", "N_TVA", "|", "Montant_HT") +
+    '<hr class="sep">' + row("bail", "Date_bail", "|", "ILC", "ILC_Annee", "ILC_Trimestre");
   $("ov-form").classList.add("open");
   const first = $("form-grid").querySelector("input:not([readonly])"); if (first) first.focus();
 }
 function closeForm() { $("ov-form").classList.remove("open"); if (formFocus) formFocus.focus(); }
 
+// Types des colonnes d'une table (Int, Numeric, Text…) lus dans les métadonnées de Grist
+async function colTypes(table) {
+  try {
+    const tt = await grist.docApi.fetchTable("_grist_Tables"), tc = await grist.docApi.fetchTable("_grist_Tables_column");
+    const tid = tt.id[tt.tableId.indexOf(table)], m = new Map();
+    tc.id.forEach((_, k) => { if (tc.parentId[k] === tid) m.set(tc.colId[k], tc.type[k]); });
+    return m;
+  } catch (e) { return new Map(); }
+}
 async function saveForm() {
-  const fields = {};
+  const fields = {}, types = await colTypes("Locaux"), i0 = locT.id.indexOf(locSel);
   for (const c of CHAMPS) {
     if (c.t === "ro" || c.t === "calc") continue;   // REF et Montant_HT (formule) non envoyés
     const el = $("f_" + c.k);
@@ -670,6 +698,12 @@ async function saveForm() {
     else if (c.t === "eur") fields[c.k] = el.value === "" ? null : Number(el.value);
     else if (c.t === "pct") fields[c.k] = el.value === "" ? null : Number((Number(el.value) / 100).toFixed(6));
     else if (c.t === "date") { const m = el.value.split("-").map(Number); fields[c.k] = el.value ? Date.UTC(m[0], m[1] - 1, m[2]) / 1000 : null; }
+    else if (c.t === "auto") {      // numérique ou texte selon le type de la colonne (à défaut : selon la valeur actuelle)
+      const ty = types.get(c.k), cur = locT[c.k]?.[i0];
+      const numeric = ty ? /^(Int|Numeric)/.test(ty) : (typeof cur === "number" || (cur == null && c.num));
+      if (numeric) { const d = c.k === "SIREN" ? el.value.replace(/\D/g, "") : el.value; fields[c.k] = d === "" ? null : Number(d); }
+      else fields[c.k] = el.value;
+    }
     else fields[c.k] = el.value;
   }
   $("form-save").disabled = true; $("form-msg").textContent = "Enregistrement…";
@@ -1149,7 +1183,7 @@ $("dec-pdf").onclick = () => {
   v.recap.forEach(([l, x, st]) => { T(l, dX, y, { b: st }); T(clean(x), sR, y, { b: st, a: "right" }); sep(); });
 
   const t = new Date(), iso = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
-  doc.save(`${v.name || v.ref}_${iso}`.replace(/[\\/:*?"<>|]+/g, "-") + ".pdf");
+  doc.save(`Décompte ${v.name || v.ref}_${iso}`.replace(/[\\/:*?"<>|]+/g, "-") + ".pdf");
 };
 $("d_from").oninput = $("d_to").oninput = renderDec;
 function closeDec() { $("ov-dec").classList.remove("open"); if (decFocus) decFocus.focus(); }
