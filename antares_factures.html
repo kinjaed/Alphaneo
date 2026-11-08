@@ -221,19 +221,25 @@
     .pp-table .num { text-align: right; white-space: nowrap; }
     .pp-table tfoot td { font-weight: 700; background: #f1f3f5; border-top: 2px solid #1f4e79; border-bottom: 0; }
   }
+  .tabs { display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap; }
+  button.linklike { all: unset; cursor: pointer; color: var(--muted); font-size: 16px; font-weight: 600; margin-top: 4px; }
+  button.linklike:hover { color: var(--fg); text-decoration: underline; }
+  button.linklike:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button.crimson { background: #d94a43; border-color: #d94a43; color: #fff; font-weight: 600; }
+  button.crimson:hover { background: #c63d37; border-color: #c63d37; color: #fff; }
 </style>
 </head>
 <body>
   <h1>ANTARES <span>– Factures</span></h1>
   <hr>
   <div class="bar">
-    <div class="grp"><button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button><button id="btnDec" class="violet ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 20v-6M12 20v-7M16 20v-5M20 20v-6"/><path d="M5 11l4.5-4 4 3.5 5-5"/></svg>Décomptes</button></div>
+    <div class="grp"><button id="btnNew" class="green ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>Nouvelle facture</button><button id="btnNewAv" class="crimson ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 2v20l3-2 2 2 2-2 2 2 2-2 3 2V2z"/><path d="M9 6.5h6M9 10h6"/><path d="M15.5 14.5H9M11.5 12l-2.5 2.5 2.5 2.5"/></svg>Nouvel avoir</button><button id="btnPay" class="teal ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5l1.3 2h3.4l1.3-2"/><path d="M10.3 4.5C7 7 6.2 9.8 7.3 11.8c.7 1.2 2.2 1.6 4.7 1.6s4-.4 4.7-1.6c1.1-2 .3-4.8-3-7.3"/><text x="12" y="11.6" font-size="6" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">€</text><path d="M2 15.5h3v6H2z"/><path d="M5 16.5h6.5c1 0 1.8.6 1.8 1.3s-.8 1.2-1.8 1.2H9.5"/><path d="M13 18.2l3.2-1.1c2-.7 3.8.2 5.8 1.8-3 2.2-6 3.2-9.5 3.1L5 21"/></svg>Paiements</button><button id="btnDec" class="violet ibtn" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M8 20v-6M12 20v-7M16 20v-5M20 20v-6"/><path d="M5 11l4.5-4 4 3.5 5-5"/></svg>Décomptes</button></div>
     <button id="btnLocaux" class="blue ibtn" type="button"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v11h14V10"/><path d="M10 21v-6h4v6"/></svg>Locaux</button>
   </div>
   <hr>
   <div id="main">
   <section id="left">
-  <h2>Liste des factures</h2>
+  <div class="tabs"><h2 id="listTitle">Liste des factures</h2><button id="listAlt" class="linklike" type="button">Liste des avoirs</button></div>
   <div class="filters">
     <label>Référence <select id="ref"></select></label>
     <label>Année <select id="year"></select></label>
@@ -246,7 +252,7 @@
       <thead><tr>
         <th>Réf.</th>
         <th aria-sort="descending"><button id="sort" type="button" title="Inverser le tri">Date <span id="arrow">▼</span></button></th>
-        <th>N° Facture</th>
+        <th id="th-num">N° Facture</th>
         <th class="num">Montant</th>
       </tr></thead>
       <tbody id="rows"></tbody>
@@ -302,11 +308,11 @@
     <label>REF<select id="n_ref"></select></label>
     <label>Date facture<input id="n_date" type="date"></label>
     <label>N°<input id="n_num" class="num" type="number" step="1" min="0"></label>
-    <label>Facture<input id="n_fact" type="text" readonly tabindex="-1"></label>
+    <label><span id="n_fact_l">Facture</span><input id="n_fact" type="text" readonly tabindex="-1"></label>
   </div>
   <div class="wrap"><table>
     <colgroup><col style="width:64px"><col style="width:130px"><col><col style="width:130px"><col style="width:46px"></colgroup>
-    <thead><tr><th>REF</th><th>N° Facture</th><th>Description</th><th>Montant</th><th></th></tr></thead>
+    <thead><tr><th>REF</th><th id="th-new-num">N° Facture</th><th>Description</th><th>Montant</th><th></th></tr></thead>
     <tbody id="new-rows"></tbody>
   </table></div>
   <div class="actions"><button id="new-add" class="green" type="button">Ajouter une ligne</button><span id="new-msg" role="alert"></span></div>
@@ -354,7 +360,18 @@ const $ = id => document.getElementById(id);
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 const fmtDate = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC" });
 
-let data = [];          // [{id, ref, d, num, montant}]
+// Deux types de documents : factures (f) et avoirs (a), même principe, tables différentes
+const CFG = {
+  f: { table: "Factures", lines: "Lignes_de_facture", link: "Num_Facture", dateCol: "Date_Facture", prefix: "FA",
+       list: "Liste des factures", numLabel: "N° Facture", metaLabel: "Facture N°", docTitle: "FACTURE", newTitle: "Nouvelle facture",
+       nameFld: "Facture", created: "Facture créée", empty: "Aucune facture pour cette période." },
+  a: { table: "Avoirs", lines: "Lignes_d_avoir", link: "Num_Avoir", dateCol: "Date_avoir", prefix: "FA",
+       list: "Liste des avoirs", numLabel: "N° Avoir", metaLabel: "Avoir N°", docTitle: "AVOIR", newTitle: "Nouvel avoir",
+       nameFld: "Avoir", created: "Avoir créé", empty: "Aucun avoir pour cette période." }
+};
+let listMode = "f";     // liste affichée : "f" factures, "a" avoirs
+let dataF = [], dataA = [];
+let data = [];          // [{id, kind, ref, d, num, montant}] — liste affichée
 let desc = true;        // tri date : décroissant par défaut
 let selectedId = null;  // ligne sélectionnée
 
@@ -377,14 +394,41 @@ grist.onRecords(async records => {
     const v = r.Date_Facture;
     if (typeof v === "number") d = new Date(v * 1000);
     else if (v) { const t = new Date(v); if (!isNaN(t)) d = t; }
-    return { id: r.id, refRaw: r.REF, ref: refMap.get(r.REF) ?? r.REF ?? "", n: Number(r.Num) || 0, d, num: r.Num_Facture ?? "", montant: Number(r.Montant_TTC) || 0,
+    return { id: r.id, kind: "f", refRaw: r.REF, ref: refMap.get(r.REF) ?? r.REF ?? "", n: Number(r.Num) || 0, d, num: r.Num_Facture ?? "", montant: Number(r.Montant_TTC) || 0,
              ht: Number(r.Montant_HT) || 0, tva: !!r.TVA };
   });
+  if (listMode === "f") { data = dataF; refreshFilters(); render(); renderPreview(); }
+});
+
+function refreshFilters() {
   refreshSelect("ref", [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
   refreshSelect("year", [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a).map(String), "Toutes");
-  render();
-  renderPreview();
-});
+}
+
+// Chargement de la table Avoirs (la liste des factures, elle, arrive en direct via onRecords)
+async function loadAvoirs() {
+  const t = await grist.docApi.fetchTable("Avoirs");
+  const target = await refTarget("Avoirs", "REF");
+  let labels = null;
+  if (target) { const rt = await grist.docApi.fetchTable(target); labels = new Map(rt.id.map((id, i) => [id, rt.REF ? rt.REF[i] : id])); }
+  dataA = t.id.map((id, i) => {
+    const v = t.Date_avoir?.[i], rv = t.REF?.[i];
+    return { id, kind: "a", refRaw: rv, ref: String(labels ? (labels.get(rv) ?? rv) : (rv ?? "")), n: Number(t.Num?.[i]) || 0,
+             d: typeof v === "number" ? new Date(v * 1000) : null, num: t.Num_Avoir?.[i] ?? "", montant: Number(t.Montant_TTC?.[i]) || 0,
+             ht: Number(t.Montant_HT?.[i]) || 0, tva: !!t.TVA?.[i], taux: typeof t.Taux_TVA?.[i] === "number" ? t.Taux_TVA[i] : null };
+  });
+}
+async function setList(m) {
+  listMode = m; selectedId = null;
+  $("listTitle").textContent = CFG[m].list;
+  $("listAlt").textContent = CFG[m === "f" ? "a" : "f"].list;
+  $("th-num").textContent = CFG[m].numLabel;
+  $("msg").textContent = "";
+  if (m === "a") { try { await loadAvoirs(); } catch (e) { $("msg").textContent = "Erreur : " + (e.message || e); dataA = []; } data = dataA; }
+  else data = dataF;
+  refreshFilters(); render(); renderPreview();
+}
+$("listAlt").onclick = () => setList(listMode === "f" ? "a" : "f");
 
 function refreshSelect(id, values, allLabel) {
   const sel = $(id), keep = sel.value;
@@ -400,7 +444,7 @@ function select(id) {
   selectedId = (selectedId === id) ? null : id;   // un second clic désélectionne
   renderPreview();
   document.querySelectorAll("#rows tr[data-id]").forEach(tr => tr.classList.toggle("sel", +tr.dataset.id === selectedId));
-  if (selectedId !== null) { try { grist.setCursorPos({ rowId: selectedId }); } catch (e) {} }
+  if (selectedId !== null && listMode === "f") { try { grist.setCursorPos({ rowId: selectedId }); } catch (e) {} }
 }
 
 $("rows").addEventListener("click", e => {
@@ -426,17 +470,18 @@ async function openInvoice(id) {
   $("dlg-rows").innerHTML = ""; $("dlg-foot").innerHTML = ""; $("dlg-msg").textContent = "Chargement…";
   $("overlay").classList.add("open"); $("dlg-close").focus();
   try {
-    const t = await grist.docApi.fetchTable(TABLE_LIGNES);
+    const cf = CFG[inv.kind];
+    const t = await grist.docApi.fetchTable(cf.lines);
     const cols = Object.keys(t).filter(k => !["id", "manualSort"].includes(k) && !k.startsWith("gristHelper_"));
-    const link = COLONNE_LIEN || LIENS_POSSIBLES.find(c => cols.includes(c));
-    if (!link) throw new Error(`Colonne de lien introuvable dans ${TABLE_LIGNES} (colonnes : ${cols.join(", ")}). Renseignez COLONNE_LIEN.`);
+    const link = cols.includes(cf.link) ? cf.link : LIENS_POSSIBLES.find(c => cols.includes(c));
+    if (!link) throw new Error(`Colonne de lien introuvable dans ${cf.lines} (colonnes : ${cols.join(", ")}).`);
     const match = v => v === id || String(v) === String(inv.num);
     const lines = [];
     t.id.forEach((_, i) => { if (match(t[link][i])) lines.push({ d: t.Description[i] ?? "", m: Number(t.Montant[i]) || 0 }); });
     const total = lines.reduce((a, l) => a + l.m, 0);
     $("dlg-rows").innerHTML = lines.length
       ? lines.map(l => `<tr><td>${esc2(l.d)}</td><td class="num">${euro.format(l.m)}</td></tr>`).join("")
-      : '<tr><td colspan="2" class="empty">Aucune ligne pour cette facture.</td></tr>';
+      : '<tr><td colspan="2" class="empty">Aucune ligne.</td></tr>';
     const row = (label, v) => `<tr><td>${label}</td><td class="num">${euro.format(v)}</td></tr>`;
     $("dlg-foot").innerHTML = inv.tva
       ? row("Total HT", total) + row("TVA", inv.montant - inv.ht) + row("Total TTC", inv.montant)
@@ -593,10 +638,11 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-form
 
 // ---------- Nouvelle facture ----------
 const pad2 = n => String(n).padStart(2, "0");
-const factureLabel = (dateStr, num) => {      // même logique que la formule de $Num_Facture
+let newKind = "f";
+const factureLabel = (dateStr, num) => {      // même logique que la formule de $Num_Facture / $Num_Avoir
   if (!dateStr) return "";
   const [y, m] = dateStr.split("-");
-  return "FA" + y.slice(-2) + "-" + m + "-" + String(Math.trunc(Number(num) || 0)).padStart(3, "0");
+  return CFG[newKind].prefix + y.slice(-2) + "-" + m + "-" + String(Math.trunc(Number(num) || 0)).padStart(3, "0");
 };
 let newLines = [], newFocus = null, newLoc = null;
 const descFor = kind => {
@@ -655,11 +701,14 @@ function updateNewTotals() {
   $("t_tva").value = euro.format(tva);
   $("t_ttc").value = euro.format(r2(ht + tva));
 }
-async function openNew() {
+async function openNew(kind) {
+  newKind = kind; const nc = CFG[kind];
+  $("new-title").textContent = nc.newTitle; $("n_fact_l").textContent = nc.nameFld; $("th-new-num").textContent = nc.numLabel;
   newFocus = document.activeElement;
+  if (kind === "a") { try { await loadAvoirs(); } catch (e) { dataA = []; } }
   const t = new Date();
   $("n_date").value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
-  $("n_num").value = data.reduce((m, r) => Math.max(m, r.n), 0) + 1;
+  $("n_num").value = (kind === "a" ? dataA : dataF).reduce((m, r) => Math.max(m, r.n), 0) + 1;
   $("n_ref").innerHTML = '<option value="">Sélectionner…</option>';
   $("new-msg").textContent = "";
   newLines = [{ d: "", m: "" }];
@@ -689,16 +738,17 @@ async function saveNew() {
   const msg = t => { $("new-msg").textContent = t; };
   const opt = $("n_ref").selectedOptions[0];
   if (!opt || !opt.value) return msg("Sélectionnez une référence.");
-  if (!$("n_date").value) return msg("Saisissez la date de facture.");
-  if ($("n_num").value === "") return msg("Saisissez le numéro de facture.");
+  if (!$("n_date").value) return msg("Saisissez la date.");
+  if ($("n_num").value === "") return msg("Saisissez le numéro.");
   const [y, m, d] = $("n_date").value.split("-").map(Number);
   const lines = newLines.filter(l => l.d.trim() !== "" || l.m !== "");
   $("new-save").disabled = true; msg("Enregistrement…");
+  const nc = CFG[newKind];
   let id;
   try {
-    // Si Factures.REF est une colonne Référence, Grist attend l'identifiant de ligne, pas le texte
+    // Si REF est une colonne Référence, Grist attend l'identifiant de ligne, pas le texte
     let refVal = opt.textContent;
-    const target = await refTarget();
+    const target = await refTarget(nc.table, "REF");
     if (target === "Locaux") refVal = +opt.value;
     else if (target) {
       const tt = await grist.docApi.fetchTable(target);
@@ -706,21 +756,23 @@ async function saveNew() {
       if (k < 0) throw new Error(`Référence « ${opt.textContent} » introuvable dans la table ${target}.`);
       refVal = tt.id[k];
     }
-    const res = await grist.docApi.applyUserActions([["AddRecord", "Factures", null,
-      { REF: refVal, Date_Facture: Date.UTC(y, m - 1, d) / 1000, Num: Number($("n_num").value) }]]);
+    const res = await grist.docApi.applyUserActions([["AddRecord", nc.table, null,
+      { REF: refVal, [nc.dateCol]: Date.UTC(y, m - 1, d) / 1000, Num: Number($("n_num").value) }]]);
     id = res.retValues[0];
   } catch (e) { msg("Erreur : " + (e.message || e)); $("new-save").disabled = false; return; }
   try {
-    if (lines.length) await grist.docApi.applyUserActions([["BulkAddRecord", "Lignes_de_facture", lines.map(() => null), {
-      Num_Facture: lines.map(() => id),
+    if (lines.length) await grist.docApi.applyUserActions([["BulkAddRecord", nc.lines, lines.map(() => null), {
+      [nc.link]: lines.map(() => id),
       Description: lines.map(l => l.d),
       Montant: lines.map(l => l.m === "" ? null : Number(l.m))
     }]]);
     closeNew();
-  } catch (e) { msg("Facture créée, mais erreur sur les lignes : " + (e.message || e)); }
+    if (newKind === "a") { await loadAvoirs(); if (listMode === "a") { data = dataA; refreshFilters(); render(); } }
+  } catch (e) { msg(nc.created + ", mais erreur sur les lignes : " + (e.message || e)); }
   finally { $("new-save").disabled = false; }
 }
-$("btnNew").onclick = openNew;
+$("btnNew").onclick = () => openNew("f");
+$("btnNewAv").onclick = () => openNew("a");
 $("new-cancel").onclick = closeNew;
 $("new-save").onclick = saveNew;
 $("new-add").onclick = () => { newLines.push({ d: "", m: "" }); renderNewLines(); const r = $("new-rows").lastElementChild; if (r) r.querySelector("input").focus(); };
@@ -749,7 +801,7 @@ const EMETTEUR = {
   ],
   indemnite: "Le montant de l'indemnité forfaitaire pour frais de recouvrement en cas de retard de paiement, est fixé à 40 € conformément à l'article 121-II de la loi n° 2012-387 du 22 mars 2012."
 };
-const PV_VIDE = '<div class="pv-empty">Sélectionnez une facture dans la liste pour afficher l\'aperçu.</div>';
+const PV_VIDE = '<div class="pv-empty">Sélectionnez une ligne dans la liste pour afficher l\'aperçu.</div>';
 $("pv-inner").innerHTML = PV_VIDE;
 let pvToken = 0;
 function setFit(mode) {
@@ -897,10 +949,10 @@ $("btnPdf").onclick = () => {
   doc.setFillColor(...BLUE); doc.rect(0, 0, 210, 4, "F");
   T(EMETTEUR.nom, L, 22, { b: 1, s: 14 });
   EMETTEUR.adresse.forEach((a, i) => T(a, L, 28 + i * 4.8, { s: 9, c: MID }));
-  T("FACTURE", R, 24, { b: 1, s: 24, c: BLUE, a: "right" });
+  T(CFG[inv.kind].docTitle, R, 24, { b: 1, s: 24, c: BLUE, a: "right" });
 
   // Bloc facture / client
-  [["Facture N°", inv.num], ["Référence", inv.ref], ["Date", inv.d ? fmtDate.format(inv.d) : ""]].forEach(([k, v], i) => {
+  [[CFG[inv.kind].metaLabel, inv.num], ["Référence", inv.ref], ["Date", inv.d ? fmtDate.format(inv.d) : ""]].forEach(([k, v], i) => {
     T(k, L, 52 + i * 6, { s: 9, c: GREY }); T(String(v), L + 26, 52 + i * 6, { s: 9, b: 1 });
   });
   const cardLines = wrap(loc.adr ?? "", 66, 9);
@@ -921,7 +973,7 @@ $("btnPdf").onclick = () => {
   y += 9;
   T("DÉSIGNATION", L + 1.5, y, { s: 7.5, b: 1, c: GREY }); T("MONTANT", R - 1.5, y, { s: 7.5, b: 1, c: GREY, a: "right" });
   y += 2.5; doc.setDrawColor(...BLUE); doc.setLineWidth(.6); doc.line(L, y, R, y); y += 6.5;
-  if (!lines.length) { T("Aucune ligne de facture.", L + 1.5, y, { c: GREY }); y += 7; }
+  if (!lines.length) { T("Aucune ligne.", L + 1.5, y, { c: GREY }); y += 7; }
   lines.forEach(l => {
     if (y > 230) { doc.addPage(); y = 25; }
     const parts = wrap(l.d, 125);
@@ -943,10 +995,10 @@ $("btnPdf").onclick = () => {
   y += 8 + 14;
 
   // Conditions de paiement
-  T("CONDITIONS DE PAIEMENT", L, y, { s: 7.5, b: 1, c: GREY }); T("Règlement à réception", L, y + 5.5);
+  if (inv.kind !== "a") { T("CONDITIONS DE PAIEMENT", L, y, { s: 7.5, b: 1, c: GREY }); T("Règlement à réception", L, y + 5.5); }
 
   // Indemnité + pied de page
-  const ind = wrap(EMETTEUR.indemnite, R - L, 8.5);
+  const ind = inv.kind === "a" ? [] : wrap(EMETTEUR.indemnite, R - L, 8.5);
   const iy = Math.max(y + 20, 262 - ind.length * 4.2);
   ind.forEach((t, i) => T(t, L, iy + i * 4.2, { s: 8.5, c: MID }));
   let fy = Math.max(iy + ind.length * 4.2 + 4, 274);
@@ -961,15 +1013,16 @@ async function renderPreview() {
   const inv = data.find(r => r.id === selectedId);
   setPvButtons(false); pvCurrent = null;
   if (!inv) { box.innerHTML = PV_VIDE; return; }
+  const cf = CFG[inv.kind];
   try {
-    const [lt, lg] = await Promise.all([grist.docApi.fetchTable("Locaux"), grist.docApi.fetchTable("Lignes_de_facture")]);
+    const [lt, lg] = await Promise.all([grist.docApi.fetchTable("Locaux"), grist.docApi.fetchTable(cf.lines)]);
     if (tok !== pvToken) return;                       // une sélection plus récente a pris le relais
     let li = typeof inv.refRaw === "number" ? lt.id.indexOf(inv.refRaw) : -1;
     if (li < 0) li = (lt.REF || []).findIndex(v => String(v) === String(inv.ref));
     const loc = li >= 0 ? { nom: lt.Nom_Commercial?.[li], adr: lt.Adresse?.[li], cp: lt.Code_postal?.[li], ville: lt.Ville?.[li], taux: lt.Taux_TVA?.[li] } : {};
     const lines = [];
-    // lien avec Lignes_de_facture par le N° Facture
-    lg.id.forEach((_, i) => { const v = lg.Num_Facture?.[i]; if (v === inv.id || String(v) === String(inv.num)) lines.push({ d: lg.Description?.[i] ?? "", m: Number(lg.Montant?.[i]) || 0 }); });
+    // lien avec la table des lignes par le N° de facture / d'avoir
+    lg.id.forEach((_, i) => { const v = lg[cf.link]?.[i]; if (v === inv.id || String(v) === String(inv.num)) lines.push({ d: lg.Description?.[i] ?? "", m: Number(lg.Montant?.[i]) || 0 }); });
     box.innerHTML = paperHtml(inv, loc, lines);
     pvCurrent = { inv, loc, lines }; setPvButtons(true);
   } catch (e) { box.innerHTML = '<div class="pv-empty">Erreur : ' + esc2(e.message || e) + '</div>'; }
@@ -977,10 +1030,10 @@ async function renderPreview() {
 
 function pvCalc(inv, loc) {
   const ht = inv.ht, ttc = inv.montant, tva = Math.round((ttc - ht) * 100) / 100;
-  const taux = typeof loc.taux === "number" && loc.taux ? loc.taux : (ht ? tva / ht : 0);
+  const taux = typeof inv.taux === "number" && inv.taux ? inv.taux : (typeof loc.taux === "number" && loc.taux ? loc.taux : (ht ? tva / ht : 0));
   const adresseBien = [loc.adr, [loc.cp, loc.ville].filter(Boolean).join(" ")].filter(Boolean).join(", ");
   let periode = "";
-  if (inv.d) {
+  if (inv.d && inv.kind !== "a") {
     const y = inv.d.getUTCFullYear(), m = inv.d.getUTCMonth(), last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
     periode = `Loyer commercial du 1er au ${last} ${MOIS[m].toLowerCase()} ${y}`;
   }
@@ -997,11 +1050,11 @@ function paperHtml(inv, loc, lines) {
   return `<div class="sheet"><article class="paper">
     <div class="p-head">
       <div class="p-issuer"><b>${e(EMETTEUR.nom)}</b>${EMETTEUR.adresse.map(e).join("<br>")}</div>
-      <div class="p-title">FACTURE</div>
+      <div class="p-title">${CFG[inv.kind].docTitle}</div>
     </div>
     <div class="p-row">
       <dl class="p-meta" style="margin:0">
-        <dt>Facture N°</dt><dd>${e(inv.num)}</dd>
+        <dt>${CFG[inv.kind].metaLabel}</dt><dd>${e(inv.num)}</dd>
         <dt>Référence</dt><dd>${e(inv.ref)}</dd>
         <dt>Date</dt><dd>${inv.d ? fmtDate.format(inv.d) : ""}</dd>
       </dl>
@@ -1010,11 +1063,11 @@ function paperHtml(inv, loc, lines) {
     <div class="p-prop">${periode ? `<b>${e(periode)}</b><br>` : ""}${adresseBien ? `Adresse du bien : ${e(adresseBien)}` : ""}</div>
     <table class="p-table">
       <thead><tr><th>Désignation</th><th>Montant</th></tr></thead>
-      <tbody>${lines.length ? lines.map(l => `<tr><td>${e(l.d)}</td><td>${euro.format(l.m)}</td></tr>`).join("") : '<tr><td colspan="2" style="color:#7b8794">Aucune ligne de facture.</td></tr>'}</tbody>
+      <tbody>${lines.length ? lines.map(l => `<tr><td>${e(l.d)}</td><td>${euro.format(l.m)}</td></tr>`).join("") : '<tr><td colspan="2" style="color:#7b8794">Aucune ligne.</td></tr>'}</tbody>
     </table>
     <div class="p-tot">${totals}</div>
-    <div class="p-pay"><h4>Conditions de paiement</h4>Règlement à réception</div>
-    <div class="p-prop p-indem">${e(EMETTEUR.indemnite)}</div>
+    ${inv.kind === "a" ? '<div class="p-indem"></div>' : `<div class="p-pay"><h4>Conditions de paiement</h4>Règlement à réception</div>
+    <div class="p-prop p-indem">${e(EMETTEUR.indemnite)}</div>`}
     <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}</footer>
   </article></div>`;
 }
@@ -1039,7 +1092,7 @@ function render() {
   $("foot").innerHTML = filtered ? `<tr><td colspan="3">Total</td><td class="num">${euro.format(sum)}</td></tr>` : "";
   $("rows").innerHTML = rows.length
     ? rows.map(r => `<tr data-id="${r.id}" tabindex="0" class="${r.id === selectedId ? "sel" : ""}"><td>${esc(r.ref)}</td><td>${r.d ? fmtDate.format(r.d) : ""}</td><td>${esc(r.num)}</td><td class="num">${euro.format(r.montant)}</td></tr>`).join("")
-    : '<tr><td colspan="4" class="empty">Aucune facture pour cette période.</td></tr>';
+    : `<tr><td colspan="4" class="empty">${CFG[listMode].empty}</td></tr>`;
 }
 </script>
 </body>
