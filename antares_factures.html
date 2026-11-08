@@ -44,15 +44,15 @@
   .empty { padding: 24px; text-align: center; color: #6b7785; }
   #msg { color: var(--muted); font-size: 12px; }
   /* Fenêtre détail facture */
-  #overlay, #ov-loc, #ov-pay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
+  #overlay, #ov-loc, #ov-pay, #ov-dec { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none;
              align-items: center; justify-content: center; padding: 16px; }
-  #overlay.open, #ov-loc.open, #ov-pay.open { display: flex; }
-  #dlg, #dlg-loc, #dlg-pay { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
+  #overlay.open, #ov-loc.open, #ov-pay.open, #ov-dec.open { display: flex; }
+  #dlg, #dlg-loc, #dlg-pay, #dlg-dec { background: var(--bg); color: var(--fg); border: 1px solid var(--dark-line); border-radius: 6px;
          width: min(560px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 16px; }
   #dlg-loc { width: min(1250px, 100%); }
-  #dlg header, #dlg-loc header, #dlg-pay header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  #dlg h3, #dlg-loc h3, #dlg-pay h3 { margin: 0; font-size: 18px; }
-  #dlg .wrap, #dlg-loc .wrap, #dlg-pay .wrap { flex: 0 1 auto; }
+  #dlg header, #dlg-loc header, #dlg-pay header, #dlg-dec header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #dlg h3, #dlg-loc h3, #dlg-pay h3, #dlg-dec h3 { margin: 0; font-size: 18px; }
+  #dlg .wrap, #dlg-loc .wrap, #dlg-pay .wrap, #dlg-dec .wrap { flex: 0 1 auto; }
   #dlg-loc .wrap { overflow: auto; }
   #dlg-loc th, #dlg-loc td { white-space: nowrap; }
   .switch { display: inline-block; width: 34px; height: 18px; border-radius: 9px; background: #b8c0c8; position: relative; vertical-align: middle; }
@@ -183,7 +183,7 @@
   @media (max-width: 640px) { #new-grid { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 520px) { #form-grid { grid-template-columns: 1fr; } }
   #form-msg { color: #ffb3a7; font-size: 12px; min-height: 1em; }
-  #dlg-msg, #loc-msg, #pay-msg { color: var(--muted); font-size: 12px; }
+  #dlg-msg, #loc-msg, #pay-msg, #dec-msg { color: var(--muted); font-size: 12px; }
   .sheet { container-type: inline-size; width: 100%; aspect-ratio: 1 / 1.414; }
   #preview.fit-h { overflow: auto; }
   #preview.fit-h #pv-inner { height: 100%; display: flex; }
@@ -228,6 +228,12 @@
   button.crimson { background: #f2736b; border-color: #f2736b; color: #2b0805; font-weight: 600; }
   button.crimson:hover { background: #e85f57; border-color: #e85f57; color: #2b0805; }
   .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  #ov-dec #dlg-dec { width: min(980px, 100%); }
+  #dlg-dec .wrap { overflow: auto; }
+  #dlg-dec td.nw { white-space: nowrap; }
+  #dec-recap-wrap { flex: none !important; overflow: visible !important; }
+  #dec-recap-wrap[hidden] { display: none; }
+  #dec-recap tr.strong td { font-weight: 700; }
 </style>
 </head>
 <body>
@@ -350,6 +356,20 @@
   </div>
   <div id="padd-msg" role="alert"></div>
   <div class="actions"><button id="padd-cancel" type="button">Annuler</button><button id="padd-save" class="orange" type="button">Enregistrer</button></div>
+</div></div>
+
+<div id="ov-dec"><div id="dlg-dec" role="dialog" aria-modal="true" aria-labelledby="dec-title">
+  <header><h3 id="dec-title">Décompte</h3><button id="dec-close" type="button" aria-label="Fermer">Fermer</button></header>
+  <div class="filters"><label>Référence <select id="d_ref"></select></label></div>
+  <div class="wrap"><table>
+    <thead><tr><th>Date</th><th>N° pièce</th><th>Désignation</th><th class="num">Débit (€)</th><th class="num">Crédit (€)</th><th class="num">Solde (€)</th></tr></thead>
+    <tbody id="dec-rows"></tbody>
+  </table></div>
+  <div class="wrap" id="dec-recap-wrap" hidden><table>
+    <thead><tr><th>Récapitulatif</th><th class="num">Montant</th></tr></thead>
+    <tbody id="dec-recap"></tbody>
+  </table></div>
+  <div id="dec-msg"></div>
 </div></div>
 
 <div id="pay-print-sheet"></div>
@@ -894,7 +914,7 @@ function printPay() {
   try { window.print(); } catch (e) { done(); }
 }
 $("pay-print").onclick = printPay;
-$("btnDec").onclick = () => { /* TODO : fonction du bouton Décomptes */ };
+$("btnDec").onclick = openDec;
 $("pay-add").onclick = openPadd;
 $("padd-cancel").onclick = closePadd;
 $("padd-save").onclick = savePadd;
@@ -920,6 +940,66 @@ $("pay-close").onclick = closePay;
 $("p_ref").onchange = $("p_from").oninput = $("p_to").oninput = renderPay;
 $("ov-pay").addEventListener("click", e => { if (e.target === $("ov-pay")) closePay(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-pay").classList.contains("open") && !$("ov-padd").classList.contains("open")) closePay(); });
+
+// ---------- Décompte (factures + avoirs + paiements d'une référence) ----------
+const num2 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let decEvents = [], decFocus = null;
+const r2c = x => Math.round(x * 100) / 100;
+
+async function openDec() {
+  decFocus = document.activeElement;
+  $("d_ref").innerHTML = "<option value=\"\"></option>";
+  $("dec-rows").innerHTML = ""; $("dec-recap-wrap").hidden = true; $("dec-msg").textContent = "Chargement…";
+  $("ov-dec").classList.add("open"); $("d_ref").focus();
+  try {
+    const [lt, lf, la] = await Promise.all([grist.docApi.fetchTable("Locaux"), grist.docApi.fetchTable("Lignes_de_facture"), grist.docApi.fetchTable("Lignes_d_avoir")]);
+    await Promise.all([loadAvoirs(), loadPay()]);
+    // première ligne (description) de chaque facture / avoir, retrouvée par le N° de facture / d'avoir
+    const first = (t, link) => { const m = new Map(); (t.id || []).forEach((_, i) => { const k = String(t[link]?.[i]); if (!m.has(k)) m.set(k, t.Description?.[i] ?? ""); }); return m; };
+    const mf = first(lf, "Num_Facture"), ma = first(la, "Num_Avoir");
+    const doc = (r, m) => m.get(String(r.id)) ?? m.get(String(r.num)) ?? "";
+    const day = d => d ? d.getTime() / 1000 : 0;
+    decEvents = [
+      ...dataF.map(r => ({ ref: r.ref, t: day(r.d), k: 0, num: r.num, desc: doc(r, mf), debit: r.montant, credit: 0 })),
+      ...dataA.map(r => ({ ref: r.ref, t: day(r.d), k: 2, num: r.num, desc: doc(r, ma), debit: 0, credit: r.montant, avoir: true })),
+      ...payRows.map(r => ({ ref: r.ref, t: r.d ?? 0, k: 1, num: "", desc: (String(r.c).trim() || "Règlement"), debit: 0, credit: r.m, reglement: true }))
+    ];
+    const refs = (lt.REF || []).map(String).filter(Boolean).sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+    $("d_ref").innerHTML = '<option value=""></option>' + refs.map(v => `<option>${esc2(v)}</option>`).join("");
+    $("dec-msg").textContent = "";
+    renderDec();
+  } catch (e) { $("dec-msg").textContent = "Erreur : " + (e.message || e); }
+}
+function renderDec() {
+  const ref = $("d_ref").value;
+  if (!ref) {
+    $("dec-rows").innerHTML = '<tr><td colspan="6" class="empty">Sélectionnez une référence pour afficher le décompte.</td></tr>';
+    $("dec-recap-wrap").hidden = true; return;
+  }
+  // chronologique (le plus ancien en haut) ; à date égale : factures, règlements, avoirs
+  const ev = decEvents.filter(e => String(e.ref) === ref).sort((a, b) => a.t - b.t || a.k - b.k || String(a.num).localeCompare(String(b.num)));
+  let solde = 0;
+  const cell = v => v ? num2.format(v) : "";
+  $("dec-rows").innerHTML = ev.length ? ev.map(e => {
+    solde = r2c(solde + e.debit - e.credit);
+    return `<tr><td class="nw">${e.t ? fmtDate.format(new Date(e.t * 1000)) : ""}</td><td class="nw">${esc2(e.num)}</td><td>${esc2(e.desc)}</td>
+      <td class="num nw">${cell(e.debit)}</td><td class="num nw">${cell(e.credit)}</td><td class="num nw">${num2.format(solde)}</td></tr>`;
+  }).join("") : '<tr><td colspan="6" class="empty">Aucune pièce pour cette référence.</td></tr>';
+  const sum = f => r2c(ev.filter(f).reduce((a, e) => a + e.debit + e.credit, 0));
+  const fact = sum(e => !e.avoir && !e.reglement), av = sum(e => e.avoir), rg = sum(e => e.reglement);
+  const sg = v => euro.format(v === 0 ? 0 : v);
+  $("dec-recap").innerHTML =
+    `<tr><td>Total facturé</td><td class="num">${sg(fact)}</td></tr>
+     <tr><td>Total des avoirs</td><td class="num">${sg(-av)}</td></tr>
+     <tr><td>Total des règlements</td><td class="num">${sg(-rg)}</td></tr>
+     <tr class="strong"><td>SOLDE RESTANT DÛ</td><td class="num">${sg(r2c(fact - av - rg))}</td></tr>`;
+  $("dec-recap-wrap").hidden = false;
+}
+function closeDec() { $("ov-dec").classList.remove("open"); if (decFocus) decFocus.focus(); }
+$("dec-close").onclick = closeDec;
+$("d_ref").onchange = renderDec;
+$("ov-dec").addEventListener("click", e => { if (e.target === $("ov-dec")) closeDec(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-dec").classList.contains("open")) closeDec(); });
 
 let pvCurrent = null;
 const setPvButtons = on => { $("btnPrint").disabled = $("btnPdf").disabled = !on; };
