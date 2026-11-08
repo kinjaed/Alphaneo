@@ -120,6 +120,7 @@
   .p-meta dt { color: #7b8794; } .p-meta dd { margin: 0; font-weight: 600; }
   .p-tenant { background: #f3f6f9; border-left: .3em solid var(--pa); border-radius: .3em; padding: .8em 1.1em; min-width: 40%; line-height: 1.5; }
   .p-tenant b { display: block; font-size: 1.1em; }
+  .p-ids { margin-top: .8em; color: #52606d; }
   .p-prop { color: #52606d; line-height: 1.6; }
   .p-prop b { color: #1f2933; }
   .p-table { width: 100%; border-collapse: collapse; }
@@ -843,7 +844,7 @@ const EMETTEUR = {
     "Banque Crédit Mutuel · IBAN FR76 1027 8025 1800 0219 5440 313 · BIC CMCIFR2A",
     "Code Banque 10278 · Guichet 02518 · Compte 00021954403 · Clé 13"
   ],
-  indemnite: "Le montant de l'indemnité forfaitaire pour frais de recouvrement en cas de retard de paiement, est fixé à 40 € conformément à l'article 121-II de la loi n° 2012-387 du 22 mars 2012."
+  indemnite: "En cas de retard de paiement : des intérêts moratoires pourront être dus au taux de l’intérêt légal, à compter de la mise en demeure, conformément aux articles 1231-6 et 1344 du Code civil."
 };
 const PV_VIDE = '<div class="pv-empty">Sélectionnez une ligne dans la liste pour afficher l\'aperçu.</div>';
 $("pv-inner").innerHTML = PV_VIDE;
@@ -1106,12 +1107,14 @@ $("btnPdf").onclick = () => {
   });
   const cardLines = wrap(loc.adr ?? "", 66, 9);
   const cp = [loc.cp, loc.ville].filter(Boolean).join(" ");
-  const ch = 7 + (1 + cardLines.length + (cp ? 1 : 0)) * 4.8;
+  const ids = idLines(loc, inv);
+  const ch = 7 + (1 + cardLines.length + (cp ? 1 : 0)) * 4.8 + (ids.length ? 2.5 + ids.length * 4.8 : 0);
   doc.setFillColor(243, 246, 249); doc.rect(118, 44, 72, ch, "F");
   doc.setFillColor(...BLUE); doc.rect(118, 44, 1.2, ch, "F");
   T(loc.nom ?? "", 122, 50.5, { b: 1, s: 10 });
   cardLines.forEach((t, i) => T(t, 122, 55.3 + i * 4.8, { s: 9, c: MID }));
   if (cp) T(cp, 122, 55.3 + cardLines.length * 4.8, { s: 9, c: MID });
+  ids.forEach((t, i) => T(t, 122, 55.3 + (cardLines.length + (cp ? 1 : 0)) * 4.8 + 2.5 + i * 4.8, { s: 9, c: MID }));
 
   // Période / adresse du bien
   let y = Math.max(44 + ch, 72) + 12;
@@ -1144,7 +1147,8 @@ $("btnPdf").onclick = () => {
   y += 8 + 14;
 
   // Conditions de paiement
-  if (inv.kind !== "a") { T("CONDITIONS DE PAIEMENT", L, y, { s: 7.5, b: 1, c: GREY }); T("Règlement à réception", L, y + 5.5); }
+  if (inv.kind !== "a") { T("CONDITIONS DE PAIEMENT", L, y, { s: 7.5, b: 1, c: GREY }); T("Date d’échéance : " + (inv.d ? fmtDate.format(inv.d) : "") + " – Paiement d’avance conformément au bail commercial", L, y + 5.5);
+    T("Escompte pour paiement anticipé : néant", L, y + 10.5); }
 
   // Indemnité + pied de page
   const ind = inv.kind === "a" ? [] : wrap(EMETTEUR.indemnite, R - L, 8.5);
@@ -1168,7 +1172,7 @@ async function renderPreview() {
     if (tok !== pvToken) return;                       // une sélection plus récente a pris le relais
     let li = typeof inv.refRaw === "number" ? lt.id.indexOf(inv.refRaw) : -1;
     if (li < 0) li = (lt.REF || []).findIndex(v => String(v) === String(inv.ref));
-    const loc = li >= 0 ? { nom: lt.Nom_Commercial?.[li], adr: lt.Adresse?.[li], cp: lt.Code_postal?.[li], ville: lt.Ville?.[li], taux: lt.Taux_TVA?.[li] } : {};
+    const loc = li >= 0 ? { nom: lt.Nom_Commercial?.[li], adr: lt.Adresse?.[li], cp: lt.Code_postal?.[li], ville: lt.Ville?.[li], taux: lt.Taux_TVA?.[li], siren: lt.SIREN?.[li], ntva: lt.N_TVA?.[li] } : {};
     const lines = [];
     // lien avec la table des lignes par le N° de facture / d'avoir
     lg.id.forEach((_, i) => { const v = lg[cf.link]?.[i]; if (v === inv.id || String(v) === String(inv.num)) lines.push({ d: lg.Description?.[i] ?? "", m: Number(lg.Montant?.[i]) || 0 }); });
@@ -1177,6 +1181,19 @@ async function renderPreview() {
   } catch (e) { box.innerHTML = '<div class="pv-empty">Erreur : ' + esc2(e.message || e) + '</div>'; }
 }
 
+// SIREN au format 000 000 000 ; N° TVA seulement si la TVA s'applique à la pièce
+function fmtSiren(v) {
+  let d = String(v ?? "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.length < 9) d = d.padStart(9, "0");
+  return d.replace(/(\d{3})(?=\d)/g, "$1 ");
+}
+function idLines(loc, inv) {
+  const o = [], sr = fmtSiren(loc.siren), tv = String(loc.ntva ?? "").trim();
+  if (sr) o.push("N° SIREN : " + sr);
+  if (inv.tva && tv) o.push("N° TVA : " + tv);
+  return o;
+}
 function pvCalc(inv, loc) {
   const ht = inv.ht, ttc = inv.montant, tva = Math.round((ttc - ht) * 100) / 100;
   const taux = typeof inv.taux === "number" && inv.taux ? inv.taux : (typeof loc.taux === "number" && loc.taux ? loc.taux : (ht ? tva / ht : 0));
@@ -1207,7 +1224,7 @@ function paperHtml(inv, loc, lines) {
         <dt>Référence</dt><dd>${e(inv.ref)}</dd>
         <dt>Date</dt><dd>${inv.d ? fmtDate.format(inv.d) : ""}</dd>
       </dl>
-      <div class="p-tenant"><b>${e(loc.nom ?? "")}</b>${e(loc.adr ?? "")}<br>${e([loc.cp, loc.ville].filter(Boolean).join(" "))}</div>
+      <div class="p-tenant"><b>${e(loc.nom ?? "")}</b>${e(loc.adr ?? "")}<br>${e([loc.cp, loc.ville].filter(Boolean).join(" "))}${idLines(loc, inv).length ? `<div class="p-ids">${idLines(loc, inv).map(e).join("<br>")}</div>` : ""}</div>
     </div>
     <div class="p-prop">${periode ? `<b>${e(periode)}</b><br>` : ""}${adresseBien ? `Adresse du bien : ${e(adresseBien)}` : ""}</div>
     <table class="p-table">
@@ -1215,7 +1232,7 @@ function paperHtml(inv, loc, lines) {
       <tbody>${lines.length ? lines.map(l => `<tr><td>${e(l.d)}</td><td>${euro.format(l.m)}</td></tr>`).join("") : '<tr><td colspan="2" style="color:#7b8794">Aucune ligne.</td></tr>'}</tbody>
     </table>
     <div class="p-tot">${totals}</div>
-    ${inv.kind === "a" ? '<div class="p-indem"></div>' : `<div class="p-pay"><h4>Conditions de paiement</h4>Règlement à réception</div>
+    ${inv.kind === "a" ? '<div class="p-indem"></div>' : `<div class="p-pay"><h4>Conditions de paiement</h4>Date d’échéance : ${inv.d ? fmtDate.format(inv.d) : ""} – Paiement d’avance conformément au bail commercial<br>Escompte pour paiement anticipé : néant</div>
     <div class="p-prop p-indem">${e(EMETTEUR.indemnite)}</div>`}
     <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}</footer>
   </article></div>`;
