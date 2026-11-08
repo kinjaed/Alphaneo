@@ -239,6 +239,13 @@
   #dec-tenant b { display: block; font-size: 16px; }
   #dec-tenant span { color: var(--muted); }
   @media print {
+    .dp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14pt; }
+    .dp-title { font-size: 19pt; font-weight: 700; letter-spacing: .12em; color: #1f4e79; white-space: nowrap; text-align: right; }
+    .pp-table.dec { font-size: 8.5pt; }
+    .pp-table.dec th { padding: 3pt 5pt; font-size: 7pt; white-space: nowrap; }
+    .pp-table.dec td { padding: 2pt 5pt; line-height: 1.25; }
+    .pp-table.dec td.nw { white-space: nowrap; }
+    .pp-table.dec .num { white-space: nowrap; }
     .dp-name { font-size: 14pt; font-weight: 700; }
     .dp-adr { font-size: 11pt; margin-top: 2pt; }
     .dp-per { font-size: 9.5pt; color: #7b8794; margin-top: 3pt; }
@@ -958,6 +965,7 @@ $("ov-pay").addEventListener("click", e => { if (e.target === $("ov-pay")) close
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-pay").classList.contains("open") && !$("ov-padd").classList.contains("open")) closePay(); });
 
 // ---------- Décompte (factures + avoirs + paiements d'une référence) ----------
+const fmtDate2 = new Intl.DateTimeFormat("fr-FR", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "2-digit" });
 const num2 = new Intl.NumberFormat("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 let decEvents = [], decFocus = null, decLoc = null, decView = null;
 const r2c = x => Math.round(x * 100) / 100;
@@ -1041,13 +1049,16 @@ function printDec() {
   const v = decView; if (!v) return;
   const fd = x => x === null ? "…" : fmtDate.format(new Date(x * 1000));
   const cell = x => x ? num2.format(x) : "";
-  const body = v.rows.length ? v.rows.map(e => `<tr><td>${e.t ? fd(e.t) : ""}</td><td>${esc2(e.num)}</td><td>${esc2(e.desc)}</td>
+  const fs = x => fmtDate2.format(new Date(x * 1000));      // JJ/MM/AA dans le tableau
+  const body = v.rows.length ? v.rows.map(e => `<tr><td class="nw">${e.t ? fs(e.t) : ""}</td><td class="nw">${esc2(e.num)}</td><td>${esc2(e.desc)}</td>
       <td class="num">${cell(e.debit)}</td><td class="num">${cell(e.credit)}</td><td class="num">${num2.format(e.solde)}</td></tr>`).join("")
     : '<tr><td colspan="6">Aucune pièce pour cette période.</td></tr>';
-  printSheet(`<div class="dp-name">${esc2(v.name)}</div><div class="dp-adr">${esc2(v.adr)}</div>
-    <div class="dp-per">Période du ${fd(v.d1)} au ${fd(v.d2)}</div>
-    <table class="pp-table"><thead><tr><th>Date</th><th>N° pièce</th><th>Désignation</th><th class="num">Débit (€)</th><th class="num">Crédit (€)</th><th class="num">Solde (€)</th></tr></thead><tbody>${body}</tbody></table>
-    <table class="pp-table"><thead><tr><th>Récapitulatif</th><th class="num">Montant</th></tr></thead>
+  printSheet(`<div class="dp-head"><div>
+      <div class="dp-name">${esc2(v.name)}</div><div class="dp-adr">${esc2(v.adr)}</div>
+      <div class="dp-per">Période du ${fd(v.d1)} au ${fd(v.d2)}</div></div>
+      <div class="dp-title">ÉTAT DE COMPTE</div></div>
+    <table class="pp-table dec"><thead><tr><th>Date</th><th>N° pièce</th><th>Désignation</th><th class="num">Débit (€)</th><th class="num">Crédit (€)</th><th class="num">Solde (€)</th></tr></thead><tbody>${body}</tbody></table>
+    <table class="pp-table dec"><thead><tr><th>Récapitulatif</th><th class="num">Montant</th></tr></thead>
     <tbody>${v.recap.map(([l, x, st]) => `<tr${st ? ' class="strong"' : ""}><td>${l}</td><td class="num">${x}</td></tr>`).join("")}</tbody></table>`, "Décompte " + v.ref);
 }
 $("dec-print").onclick = printDec;
