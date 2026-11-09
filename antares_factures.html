@@ -155,6 +155,10 @@
   button.red:hover { background: #e5766a; border-color: #e5766a; color: #2b0c08; }
   .p-head { margin-bottom: 1.6em; }
   .p-pay { margin-top: 1.6em; }
+  .p-com { white-space: pre-wrap; font-size: .9em; line-height: 1.5; }
+  .p-com:empty { display: none; }
+  .p-com textarea { width: 100%; font: inherit; color: #1f2933; background: #fffaf0; border: 1px dashed #d98b1d; border-radius: .3em;
+                    padding: .5em .7em; resize: vertical; min-height: 5em; }
   .p-paytxt { font-size: .79em; }
   .p-indem { margin-top: auto; font-size: .85em; }
   @media print {
@@ -271,6 +275,8 @@
   .mlist label:hover { background: #f1f3f5; }
   .mlist .mact { display: flex; gap: 12px; padding: 2px 4px 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
   .mlist .mact button { border: 0; padding: 2px 4px; background: none; color: var(--accent); font-size: 12px; }
+  .com-lab { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+  .com-lab textarea { font: inherit; font-size: 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; resize: vertical; width: 100%; }
 </style>
 </head>
 <body>
@@ -350,8 +356,8 @@
 <div id="ov-new"><div id="dlg-new" role="dialog" aria-modal="true" aria-labelledby="new-title">
   <header><h3 id="new-title">Nouvelle facture</h3></header>
   <div id="new-grid">
-    <label>REF<select id="n_ref"></select></label>
-    <label>Date facture<input id="n_date" type="date"></label>
+    <label><span id="n_date_l">Date facture</span><input id="n_date" type="date"></label>
+    <label>Référence<select id="n_ref"></select></label>
     <label>N°<input id="n_num" class="num" type="number" step="1" min="0"></label>
     <label><span id="n_fact_l">Facture</span><input id="n_fact" type="text" readonly tabindex="-1"></label>
   </div>
@@ -366,6 +372,7 @@
     <div class="tot" id="t_tva_row" hidden><label id="t_tva_l" for="t_tva">TVA</label><input id="t_tva" readonly tabindex="-1"></div>
     <div class="tot"><label for="t_ttc">Total TTC</label><input id="t_ttc" readonly tabindex="-1"></div>
   </div>
+  <label class="com-lab"><span id="n_com_l">Commentaires à afficher dans la facture</span><textarea id="n_com" rows="3"></textarea></label>
   <div class="actions"><button id="new-cancel" type="button">Annuler</button><button id="new-save" class="orange" type="button">Enregistrer</button></div>
 </div></div>
 
@@ -462,7 +469,7 @@ grist.onRecords(async records => {
     if (typeof v === "number") d = new Date(v * 1000);
     else if (v) { const t = new Date(v); if (!isNaN(t)) d = t; }
     return { id: r.id, kind: "f", refRaw: r.REF, ref: refMap.get(r.REF) ?? r.REF ?? "", n: Number(r.Num) || 0, d, num: r.Num_Facture ?? "", montant: Number(r.Montant_TTC) || 0,
-             ht: Number(r.Montant_HT) || 0, tva: !!r.TVA };
+             ht: Number(r.Montant_HT) || 0, tva: !!r.TVA, com: r.Commentaires ?? "" };
   });
   if (listMode === "f") { data = dataF; refreshFilters(); render(); renderPreview(); }
 });
@@ -482,7 +489,7 @@ async function loadAvoirs() {
     const v = t.Date_avoir?.[i], rv = t.REF?.[i];
     return { id, kind: "a", refRaw: rv, ref: String(labels ? (labels.get(rv) ?? rv) : (rv ?? "")), n: Number(t.Num?.[i]) || 0,
              d: typeof v === "number" ? new Date(v * 1000) : null, num: t.Num_Avoir?.[i] ?? "", montant: Number(t.Montant_TTC?.[i]) || 0,
-             ht: Number(t.Montant_HT?.[i]) || 0, tva: !!t.TVA?.[i], taux: typeof t.Taux_TVA?.[i] === "number" ? t.Taux_TVA[i] : null };
+             ht: Number(t.Montant_HT?.[i]) || 0, tva: !!t.TVA?.[i], com: t.Commentaires?.[i] ?? "", taux: typeof t.Taux_TVA?.[i] === "number" ? t.Taux_TVA[i] : null };
   });
 }
 async function setList(m) {
@@ -508,7 +515,8 @@ $("f_from").oninput = $("f_to").oninput = render;
 $("sort").onclick = () => { desc = !desc; render(); };
 
 function select(id) {
-  selectedId = (selectedId === id) ? null : id;   // un second clic désélectionne
+  if (selectedId === id) return;   // un second clic sur la ligne la garde sélectionnée
+  selectedId = id;
   renderPreview();
   document.querySelectorAll("#rows tr[data-id]").forEach(tr => tr.classList.toggle("sel", +tr.dataset.id === selectedId));
   if (selectedId !== null && listMode === "f") { try { grist.setCursorPos({ rowId: selectedId }); } catch (e) {} }
@@ -796,7 +804,8 @@ function updateNewTotals() {
 }
 async function openNew(kind) {
   newKind = kind; const nc = CFG[kind];
-  $("new-title").textContent = nc.newTitle; $("n_fact_l").textContent = nc.nameFld; $("th-new-num").textContent = nc.numLabel;
+  $("new-title").textContent = nc.newTitle; $("n_fact_l").textContent = nc.nameFld; $("n_date_l").textContent = "Date " + nc.nameFld.toLowerCase();
+  $("n_com_l").textContent = "Commentaires à afficher dans " + (kind === "a" ? "l’avoir" : "la facture"); $("n_com").value = ""; $("th-new-num").textContent = nc.numLabel;
   newFocus = document.activeElement;
   if (kind === "a") { try { await loadAvoirs(); } catch (e) { dataA = []; } }
   const t = new Date();
@@ -850,7 +859,7 @@ async function saveNew() {
       refVal = tt.id[k];
     }
     const res = await grist.docApi.applyUserActions([["AddRecord", nc.table, null,
-      { REF: refVal, [nc.dateCol]: Date.UTC(y, m - 1, d) / 1000, Num: Number($("n_num").value) }]]);
+      { REF: refVal, [nc.dateCol]: Date.UTC(y, m - 1, d) / 1000, Num: Number($("n_num").value), Commentaires: $("n_com").value }]]);
     id = res.retValues[0];
   } catch (e) { msg("Erreur : " + (e.message || e)); $("new-save").disabled = false; return; }
   try {
@@ -1183,7 +1192,7 @@ $("dec-pdf").onclick = () => {
   v.recap.forEach(([l, x, st]) => { T(l, dX, y, { b: st }); T(clean(x), sR, y, { b: st, a: "right" }); sep(); });
 
   const t = new Date(), iso = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
-  doc.save(`Décompte ${v.name || v.ref}_${iso}`.replace(/[\\/:*?"<>|]+/g, "-") + ".pdf");
+  savePdf(doc, `Décompte ${v.name || v.ref}_${iso}`.replace(/[\\/:*?"<>|]+/g, "-") + ".pdf");
 };
 $("d_from").oninput = $("d_to").oninput = renderDec;
 function closeDec() { $("ov-dec").classList.remove("open"); if (decFocus) decFocus.focus(); }
@@ -1191,6 +1200,46 @@ $("dec-close").onclick = closeDec;
 $("d_ref").onchange = renderDec;
 $("ov-dec").addEventListener("click", e => { if (e.target === $("ov-dec")) closeDec(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-dec").classList.contains("open")) closeDec(); });
+
+// Enregistrement d'un PDF : fenêtre « Enregistrer sous » du navigateur quand elle est disponible, sinon téléchargement classique
+async function savePdf(doc, name) {
+  const blob = doc.output("blob");
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: "Document PDF", accept: { "application/pdf": [".pdf"] } }] });
+      const w = await h.createWritable(); await w.write(blob); await w.close();
+      return;
+    } catch (e) { if (e && e.name === "AbortError") return; }      // annulé : on s'arrête ; autre erreur (cadre protégé) : repli
+  }
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// Double-clic dans l'aperçu : champ Commentaires (lié à la colonne Commentaires de Factures / Avoirs)
+function editPvComment() {
+  const inv = data.find(r => r.id === selectedId), box = $("p-com");
+  if (!inv || !box || box.querySelector("textarea")) return;
+  const ta = document.createElement("textarea");
+  ta.value = inv.com ?? ""; ta.rows = 4; ta.setAttribute("aria-label", "Commentaires");
+  ta.placeholder = "Commentaires — Ctrl+Entrée ou clic ailleurs pour enregistrer, Échap pour annuler";
+  box.textContent = ""; box.appendChild(ta); box.style.display = "block"; ta.focus();
+  let done = false;
+  const finish = async save => {
+    if (done) return; done = true;
+    if (save && ta.value !== (inv.com ?? "")) {
+      try { await grist.docApi.applyUserActions([["UpdateRecord", CFG[inv.kind].table, inv.id, { Commentaires: ta.value }]]); inv.com = ta.value; }
+      catch (e) { $("pv-msg").textContent = "Erreur : " + (e.message || e); }
+    }
+    renderPreview();
+  };
+  ta.addEventListener("blur", () => finish(true));
+  ta.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.stopPropagation(); finish(false); }
+    else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); finish(true); }
+  });
+}
+$("pv-inner").addEventListener("dblclick", editPvComment);
 
 let pvCurrent = null;
 const setPvButtons = on => { $("btnPrint").disabled = $("btnPdf").disabled = !on; };
@@ -1266,7 +1315,14 @@ $("btnPdf").onclick = () => {
   doc.setFillColor(...BLUE); doc.roundedRect(115, y, 75, 8, 1.2, 1.2, "F");
   T(inv.tva ? "MONTANT TOTAL TTC" : "MONTANT TOTAL", 118, y + 5.4, { b: 1, s: 9, c: [255, 255, 255] });
   T(money(ttc), R - 3, y + 5.4, { b: 1, s: 9, c: [255, 255, 255], a: "right" });
-  y += 8 + 14;
+  y += 8 + 9;
+  const com = String(inv.com ?? "").trim();
+  if (com) {
+    const cl = com.split(/\r?\n/).flatMap(l => l.trim() ? wrap(l, R - L, 8.5) : [""]);
+    cl.forEach((t, i) => T(t, L, y + i * 4.2, { s: 8.5 }));
+    y += cl.length * 4.2 + 3;
+  }
+  y += 5;
 
   // Conditions de paiement
   if (inv.kind !== "a") { T("CONDITIONS DE PAIEMENT", L, y, { s: 7.5, b: 1, c: GREY }); T("Date d’échéance : " + (inv.d ? fmtDate.format(inv.d) : "") + " – Paiement d’avance conformément au bail commercial", L, y + 5.5, { s: 7.5 });
@@ -1280,7 +1336,7 @@ $("btnPdf").onclick = () => {
   doc.setDrawColor(225, 229, 234); doc.setLineWidth(.2); doc.line(L, fy, R, fy); fy += 5;
   EMETTEUR.mentions.forEach(m => wrap(m, R - L, 7).forEach(t => { T(t, L, fy, { s: 7, c: GREY }); fy += 3.6; }));
 
-  doc.save(fileBase(c) + ".pdf");
+  savePdf(doc, fileBase(c) + ".pdf");
 };
 
 async function renderPreview() {
@@ -1354,6 +1410,7 @@ function paperHtml(inv, loc, lines) {
       <tbody>${lines.length ? lines.map(l => `<tr><td>${e(l.d)}</td><td>${euro.format(l.m)}</td></tr>`).join("") : '<tr><td colspan="2" style="color:#7b8794">Aucune ligne.</td></tr>'}</tbody>
     </table>
     <div class="p-tot">${totals}</div>
+    <div class="p-com" id="p-com">${e(inv.com ?? "")}</div>
     ${inv.kind === "a" ? '<div class="p-indem"></div>' : `<div class="p-pay"><h4>Conditions de paiement</h4><div class="p-paytxt">Date d’échéance : ${inv.d ? fmtDate.format(inv.d) : ""} – Paiement d’avance conformément au bail commercial<br>Escompte pour paiement anticipé : néant</div></div>
     <div class="p-prop p-indem">${e(EMETTEUR.indemnite)}</div>`}
     <footer class="p-foot">${EMETTEUR.mentions.map(m => `<p>${e(m)}</p>`).join("")}</footer>
@@ -1377,7 +1434,10 @@ function render() {
   // Somme de Montant affichée seulement si un filtre est appliqué
   const filtered = !!(rf || y || from !== null || to !== null);
   const sum = Math.round(rows.reduce((a, r) => a + r.montant, 0) * 100) / 100;
-  $("foot").innerHTML = filtered ? `<tr><td colspan="3">Total</td><td class="num">${euro.format(sum)}</td></tr>` : "";
+  const nb = rows.length, unit = CFG[listMode].nameFld.toLowerCase() + (nb > 1 ? "s" : "");
+  $("foot").innerHTML = !filtered ? "" : rf
+    ? `<tr><td>Total</td><td></td><td>${nb} ${unit}</td><td class="num">${euro.format(sum)}</td></tr>`
+    : `<tr><td colspan="3">Total</td><td class="num">${euro.format(sum)}</td></tr>`;
   $("rows").innerHTML = rows.length
     ? rows.map(r => `<tr data-id="${r.id}" tabindex="0" class="${r.id === selectedId ? "sel" : ""}"><td>${esc(r.ref)}</td><td>${r.d ? fmtDate.format(r.d) : ""}</td><td>${esc(r.num)}</td><td class="num">${euro.format(r.montant)}</td></tr>`).join("")
     : `<tr><td colspan="4" class="empty">${CFG[listMode].empty}</td></tr>`;
