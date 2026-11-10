@@ -223,8 +223,18 @@
   #pay-print-sheet { display: none; }
   @media print {
     body.pp > *:not(#pay-print-sheet) { display: none !important; }
-    body.pp > #pay-print-sheet { display: block !important; padding: 16mm; color: #1f2933; font: 11pt/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    body.pp > #pay-print-sheet { display: block !important; page: pp; padding: 0; color: #1f2933; font: 11pt/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
       -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    @page pp { size: A4; margin: 14mm 15mm 16mm; }
+    .pp-table thead { display: table-header-group; }
+    .pp-table tfoot { display: table-row-group; }
+    .pp-table tr { break-inside: avoid; page-break-inside: avoid; }
+    .pp-table tbody tr:last-child { break-after: avoid; }
+    .pp-table.keep { break-inside: avoid; }
+    .pp-table.pay { font-size: 9pt; }
+    .pp-table.pay th { padding: 3pt 6pt; font-size: 7.5pt; }
+    .pp-table.pay td { padding: 2pt 6pt; line-height: 1.25; }
+    .pp-table.pay td.nw { white-space: nowrap; }
     .pp-title { font-size: 20pt; font-weight: 700; color: #1f4e79; }
     .pp-sub { font-size: 11pt; color: #52606d; margin-top: 2pt; }
     .pp-table { width: 100%; border-collapse: collapse; margin-top: 12pt; }
@@ -815,7 +825,7 @@ async function openNew(kind) {
   $("new-msg").textContent = "";
   newLines = [{ d: "", m: "" }];
   renderNewLines();
-  $("ov-new").classList.add("open"); $("n_ref").focus();
+  $("ov-new").classList.add("open"); $("n_date").focus();
   try {
     const lt = await grist.docApi.fetchTable("Locaux");
     newLoc = lt;
@@ -983,10 +993,10 @@ async function savePadd() {
 function printPay() {
   const { rows, total, refs } = payShown;
   const sub = refs.map(r => { const n = payNames.get(r) || ""; return `<div class="pp-sub">${esc2(r)}${n ? " - " + esc2(n) : ""}</div>`; }).join("");
-  const body = rows.length ? rows.map(r => `<tr><td>${esc2(r.ref)}</td><td>${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num">${euro.format(r.m)}</td><td>${esc2(r.c)}</td></tr>`).join("")
+  const body = rows.length ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num">${euro.format(r.m)}</td><td>${esc2(r.c)}</td></tr>`).join("")
                            : '<tr><td colspan="4">Aucun paiement.</td></tr>';
   $("pay-print-sheet").innerHTML = `<div class="pp-title">Liste des paiements</div>${sub}
-    <table class="pp-table"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
+    <table class="pp-table pay"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
     <tbody>${body}</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">${euro.format(total)}</td><td></td></tr></tfoot></table>`;
   const old = document.title, done = () => { document.body.classList.remove("pp"); document.title = old; };
   document.title = "Liste des paiements";
@@ -1144,7 +1154,7 @@ function printDec() {
       <div class="dp-per">Période du ${fd(v.d1)} au ${fd(v.d2)}</div></div>
       <div class="dp-title">ÉTAT DE COMPTE</div></div>
     <table class="pp-table dec"><thead><tr><th>Date</th><th>N° pièce</th><th>Désignation</th><th class="num">Débit (€)</th><th class="num">Crédit (€)</th><th class="num">Solde (€)</th></tr></thead><tbody>${body}</tbody></table>
-    <table class="pp-table dec"><thead><tr><th>Récapitulatif</th><th class="num">Montant</th></tr></thead>
+    <table class="pp-table dec keep"><thead><tr><th>Récapitulatif</th><th class="num">Montant</th></tr></thead>
     <tbody>${v.recap.map(([l, x, st]) => `<tr${st ? ' class="strong"' : ""}><td>${l}</td><td class="num">${x}</td></tr>`).join("")}</tbody></table>`, "Décompte " + v.ref);
 }
 $("dec-print").onclick = printDec;
@@ -1435,9 +1445,7 @@ function render() {
   const filtered = !!(rf || y || from !== null || to !== null);
   const sum = Math.round(rows.reduce((a, r) => a + r.montant, 0) * 100) / 100;
   const nb = rows.length, unit = CFG[listMode].nameFld.toLowerCase() + (nb > 1 ? "s" : "");
-  $("foot").innerHTML = !filtered ? "" : rf
-    ? `<tr><td>Total</td><td></td><td>${nb} ${unit}</td><td class="num">${euro.format(sum)}</td></tr>`
-    : `<tr><td colspan="3">Total</td><td class="num">${euro.format(sum)}</td></tr>`;
+  $("foot").innerHTML = !filtered ? "" : `<tr><td>Total</td><td></td><td>${nb} ${unit}</td><td class="num">${euro.format(sum)}</td></tr>`;
   $("rows").innerHTML = rows.length
     ? rows.map(r => `<tr data-id="${r.id}" tabindex="0" class="${r.id === selectedId ? "sel" : ""}"><td>${esc(r.ref)}</td><td>${r.d ? fmtDate.format(r.d) : ""}</td><td>${esc(r.num)}</td><td class="num">${euro.format(r.montant)}</td></tr>`).join("")
     : `<tr><td colspan="4" class="empty">${CFG[listMode].empty}</td></tr>`;
