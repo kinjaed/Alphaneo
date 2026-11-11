@@ -287,6 +287,8 @@
   .mlist .mact button { border: 0; padding: 2px 4px; background: none; color: var(--accent); font-size: 12px; }
   .com-lab { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   .com-lab textarea { font: inherit; font-size: 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; resize: vertical; width: 100%; }
+  #new-warn { color: #ff6b6b; font-weight: 700; }
+  #new-warn:empty { display: none; }
 </style>
 </head>
 <body>
@@ -349,7 +351,7 @@
       <th>Réf.</th><th>Nom commercial</th><th>Adresse</th><th>Code postal</th><th>Ville</th>
       <th>Loyer</th><th class="num">Provision TF</th><th class="num">Provision charges</th><th class="num">Montant HT</th>
       <th class="ctr">TVA</th><th class="num">Taux TVA</th><th>Date bail</th>
-      <th class="num">ILC</th><th class="num">ILC année</th><th class="num">ILC trimestre</th><th>SIREN</th><th>N° TVA</th>
+      <th class="num">ILC</th><th class="num">ILC année</th><th class="num">ILC trimestre</th><th class="num">Loyer de base</th><th>SIREN</th><th>N° TVA</th>
     </tr></thead>
     <tbody id="loc-rows"></tbody>
   </table></div>
@@ -377,6 +379,7 @@
     <tbody id="new-rows"></tbody>
   </table></div>
   <div class="actions"><button id="new-add" class="green" type="button">Ajouter une ligne</button><span id="new-msg" role="alert"></span></div>
+  <div id="new-warn" role="status"></div>
   <div id="new-totals">
     <div class="tot"><label for="t_ht">Total HT</label><input id="t_ht" readonly tabindex="-1"></div>
     <div class="tot" id="t_tva_row" hidden><label id="t_tva_l" for="t_tva">TVA</label><input id="t_tva" readonly tabindex="-1"></div>
@@ -607,7 +610,8 @@ const CHAMPS = [
   { k: "N_TVA", l: "N° TVA", t: "text" },
   { k: "ILC", l: "ILC", t: "auto", num: true, step: "any" },
   { k: "ILC_Annee", l: "ILC année", t: "auto", num: true, step: "1" },
-  { k: "ILC_Trimestre", l: "ILC trimestre", t: "auto" }
+  { k: "ILC_Trimestre", l: "ILC trimestre", t: "auto" },
+  { k: "Loyer_de_base", l: "Loyer de base (€)", t: "eur" }
 ];
 let locT = null, locSel = null, locFocus = null, formFocus = null;
 
@@ -636,9 +640,9 @@ function renderLoc() {
       <td class="num">${eur(col("Provision_charges", i))}</td><td class="num">${eur(col("Montant_HT", i))}</td>
       <td class="ctr"><span class="switch${tva ? " on" : ""}" role="switch" aria-checked="${tva}" aria-label="TVA"></span></td>
       <td class="num">${typeof tx === "number" ? pct.format(tx) : ""}</td><td>${date(col("Date_bail", i))}</td>
-      <td class="num">${ilcFmt(col("ILC", i))}</td><td class="num">${plain(col("ILC_Annee", i))}</td><td class="num">${plain(col("ILC_Trimestre", i))}</td>
+      <td class="num">${ilcFmt(col("ILC", i))}</td><td class="num">${plain(col("ILC_Annee", i))}</td><td class="num">${plain(col("ILC_Trimestre", i))}</td><td class="num">${eur(col("Loyer_de_base", i))}</td>
       <td class="nw">${esc2(fmtSiren(col("SIREN", i)))}</td><td class="nw">${txt(col("N_TVA", i))}</td></tr>`;
-  }).join("") : '<tr><td colspan="17" class="empty">Aucun local.</td></tr>';
+  }).join("") : '<tr><td colspan="18" class="empty">Aucun local.</td></tr>';
   $("loc-edit").disabled = locSel === null;
 }
 function selectLoc(id) {
@@ -692,7 +696,7 @@ function openForm() {
     row("r1", "REF", "Nom_Commercial", "SIREN") + row("c1", "Adresse") + row("c2", "Code_postal", "Ville") +
     row("c3", "Montant_loyer", "Provision_TF", "Provision_charges") +
     row("tva", "TVA", "Taux_TVA", "N_TVA", "|", "Montant_HT") +
-    '<hr class="sep">' + row("bail", "Date_bail", "|", "ILC", "ILC_Annee", "ILC_Trimestre");
+    '<hr class="sep">' + row("bail", "Date_bail", "|", "ILC", "ILC_Annee", "ILC_Trimestre") + row("bail", "Loyer_de_base");
   $("ov-form").classList.add("open");
   const first = $("form-grid").querySelector("input:not([readonly])"); if (first) first.focus();
 }
@@ -776,6 +780,17 @@ function onNewRef() {
   }
   if (!newLines.length) newLines.push({ d: "", m: "" });
   renderNewLines();
+  updateNewWarn();
+}
+// Indexation : message pendant le mois qui suit le mois anniversaire du bail ($Date_bail), quelle que soit l'année
+function updateNewWarn() {
+  const w = $("new-warn"); w.textContent = "";
+  if (newKind !== "f" || !newLoc) return;
+  const i = newLoc.id.indexOf(+$("n_ref").value);
+  const bail = i >= 0 ? newLoc.Date_bail?.[i] : null;
+  if (typeof bail !== "number") return;
+  const mois = new Date(bail * 1000).getUTCMonth();
+  if ((mois + 1) % 12 === new Date().getMonth()) w.textContent = "Indexation à faire pour " + (newLoc.Nom_Commercial?.[i] ?? "");
 }
 function onNewDate() {
   let changed = false;
@@ -822,7 +837,7 @@ async function openNew(kind) {
   $("n_date").value = `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
   $("n_num").value = (kind === "a" ? dataA : dataF).reduce((m, r) => Math.max(m, r.n), 0) + 1;
   $("n_ref").innerHTML = '<option value="">Sélectionner…</option>';
-  $("new-msg").textContent = "";
+  $("new-msg").textContent = ""; $("new-warn").textContent = "";
   newLines = [{ d: "", m: "" }];
   renderNewLines();
   $("ov-new").classList.add("open"); $("n_date").focus();
