@@ -1179,7 +1179,7 @@ $("dec-pdf").onclick = () => {
   T(`Période du ${fd(v.d1)} au ${fd(v.d2)}`, L, 31, { s: 8, c: GREY });
   T("ÉTAT DE COMPTE", R, 22, { b: 1, s: 18, c: BLUE, a: "right" });
 
-  const sR = R - 2, cR = sR - 24, dR = cR - 24, dX = L + 2, nX = L + 19, tX = L + 47, tW = dR - 22 - tX;
+  const sR = R - 2, cR = sR - 19, dR = cR - 19, dX = L + 2, nX = L + 16, tX = L + 37, tW = dR - 17 - tX;   // colonnes de montants étroites : plus de place pour la désignation
   let y = 40;
   const band = (labels) => {                      // bandeau d'en-tête de tableau
     doc.setFillColor(241, 243, 245); doc.rect(L, y, R - L, 6.5, "F");
