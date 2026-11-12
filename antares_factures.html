@@ -101,7 +101,7 @@
   @media (max-width: 520px) { .fr.c2, .fr.c3 { grid-template-columns: 1fr; } }
   button.green { background: #7ccf8a; border-color: #7ccf8a; color: #10230f; font-weight: 600; }
   button.green:hover { background: #63bf73; border-color: #63bf73; color: #10230f; }
-  #main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  #main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
   #left { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
   #preview { min-height: 0; overflow: auto; container-type: inline-size; background: #262a2e;
              border: 1px solid var(--dark-line); border-radius: 8px; padding: 12px; }
@@ -291,14 +291,19 @@
   #new-warn { color: #ff6b6b; font-weight: 700; }
   #new-warn:empty { display: none; }
   .lrow { display: flex; gap: 10px; flex: 1; min-height: 0; }
-  #reflist { flex: 0 0 auto; width: 96px; overflow: auto; background: #fff; color: var(--ink); border: 1px solid var(--line);
-             border-radius: 4px; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
-  #reflist button { all: unset; box-sizing: border-box; display: block; cursor: pointer; padding: 7px 12px; border-radius: 999px;
+  #reflist, #yearlist { flex: 0 0 auto; width: 74px; overflow: auto; background: #fff; color: var(--ink); border: 1px solid var(--line);
+             border-radius: 4px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+  #reflist button, #yearlist button { all: unset; box-sizing: border-box; display: block; cursor: pointer; padding: 7px 6px; text-align: center; border-radius: 999px;
                     border: 1px solid transparent; font-size: 14px; color: var(--ink); }
-  #reflist button:hover { background: #fff3e3; }
-  #reflist button.on { background: #ffe3bf; border-color: #ffc58a; font-weight: 700; }
-  #reflist button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-  @media (max-width: 600px) { #reflist { max-height: 50vh; } }
+  #reflist button:hover, #yearlist button:hover { background: #fff3e3; }
+  #reflist button.on, #yearlist button.on { background: #ffe3bf; border-color: #ffc58a; font-weight: 700; }
+  #reflist button:focus-visible, #yearlist button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (max-width: 600px) { #reflist, #yearlist { max-height: 50vh; } }
+  #left > .filters { gap: 6px 10px; }
+  #left > .filters label { gap: 6px; }
+  #left > .filters input[type=date] { padding: 4px 6px; font-size: 13px; }
+  #left > .filters { justify-content: flex-start; flex-wrap: wrap; margin-left: calc(74px * 2 + 10px * 2); }   /* aligné sur le bord gauche du tableau, après les deux listes */
+  .filters label { white-space: nowrap; }
   /* listes déroulantes : ligne sélectionnée en orange clair (au lieu du gris) */
   select option:checked, select option:hover { background: #ffe3bf linear-gradient(#ffe3bf, #ffe3bf); color: #1f2933; }
 </style>
@@ -315,13 +320,13 @@
   <section id="left">
   <div class="tabs"><h2 id="listTitle">Liste des factures</h2><button id="listAlt" class="linklike" type="button">Liste des avoirs</button></div>
   <div class="filters">
-    <label>Année <select id="year"></select></label>
     <label>Période du <input id="f_from" type="date"></label>
     <label>au <input id="f_to" type="date"></label>
     <span id="msg"></span>
   </div>
   <div class="lrow">
   <div id="reflist" role="listbox" aria-label="Référence"></div>
+  <div id="yearlist" role="listbox" aria-label="Année"></div>
   <div class="wrap">
     <table>
       <thead><tr>
@@ -470,6 +475,7 @@ const CFG = {
        list: "Liste des avoirs", numLabel: "N° Avoir", metaLabel: "Avoir N°", docTitle: "AVOIR", newTitle: "Nouvel avoir",
        nameFld: "Avoir", created: "Avoir créé", empty: "Aucun avoir pour cette période." }
 };
+let yearFilter = "";    // année sélectionnée dans la liste ("" = Toutes)
 let refFilter = "";     // référence sélectionnée dans la liste de gauche ("" = Toutes)
 let listMode = "f";     // liste affichée : "f" factures, "a" avoirs
 let dataF = [], dataA = [];
@@ -502,12 +508,26 @@ grist.onRecords(async records => {
   if (listMode === "f") { data = dataF; refreshFilters(); render(); renderPreview(); }
 });
 
+// Listes de sélection verticales (Toutes + valeurs), une seule valeur choisie, valeurs centrées
+function fillList(id, values, current) {
+  $(id).innerHTML = ["", ...values].map(v =>
+    `<button type="button" role="option" class="${v === current ? "on" : ""}" aria-selected="${v === current}" data-v="${esc2(v)}">${v === "" ? "Toutes" : esc2(v)}</button>`).join("");
+}
+function bindList(id, set) {
+  $(id).addEventListener("click", e => {
+    const b = e.target.closest("button[data-v]"); if (!b) return;
+    set(b.dataset.v);
+    $(id).querySelectorAll("button").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
+    render();
+  });
+}
 function refreshFilters() {
   const vals = [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
   if (refFilter && !vals.includes(refFilter)) refFilter = "";
-  $("reflist").innerHTML = ["", ...vals].map(v =>
-    `<button type="button" role="option" class="${v === refFilter ? "on" : ""}" aria-selected="${v === refFilter}" data-v="${esc2(v)}">${v === "" ? "Toutes" : esc2(v)}</button>`).join("");
-  refreshSelect("year", [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a).map(String), "Toutes");
+  fillList("reflist", vals, refFilter);
+  const years = [...new Set(data.filter(r => r.d).map(r => String(r.d.getUTCFullYear())))].sort((a, b) => b - a);
+  if (yearFilter && !years.includes(yearFilter)) yearFilter = "";
+  fillList("yearlist", years, yearFilter);
 }
 
 // Chargement de la table Avoirs (la liste des factures, elle, arrive en direct via onRecords)
@@ -541,13 +561,8 @@ function refreshSelect(id, values, allLabel) {
   if (values.includes(keep)) sel.value = keep;
 }
 
-$("year").onchange = render;
-$("reflist").addEventListener("click", e => {
-  const b = e.target.closest("button[data-v]"); if (!b) return;
-  refFilter = b.dataset.v;
-  $("reflist").querySelectorAll("button").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
-  render();
-});
+bindList("reflist", v => { refFilter = v; });
+bindList("yearlist", v => { yearFilter = v; });
 $("f_from").oninput = $("f_to").oninput = render;
 $("sort").onclick = () => { desc = !desc; render(); };
 
@@ -1467,7 +1482,7 @@ function paperHtml(inv, loc, lines) {
 }
 
 function render() {
-  const rf = refFilter, y = $("year").value;
+  const rf = refFilter, y = yearFilter;
   const day = v => { if (!v) return null; const [yy, mm, dd] = v.split("-").map(Number); return Date.UTC(yy, mm - 1, dd) / 1000; };
   const from = day($("f_from").value), to = day($("f_to").value);      // champ vide = pas de limite
   const rows = data
