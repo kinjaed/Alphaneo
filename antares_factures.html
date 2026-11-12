@@ -282,13 +282,25 @@
            background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 6px; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
   .mlist[hidden] { display: none; }
   .mlist label { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 4px; cursor: pointer; }
-  .mlist label:hover { background: #f1f3f5; }
+  .mlist label:hover { background: #fff3e3; }
+  .mlist label:has(input:checked) { background: #ffe3bf; }
   .mlist .mact { display: flex; gap: 12px; padding: 2px 4px 6px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
   .mlist .mact button { border: 0; padding: 2px 4px; background: none; color: var(--accent); font-size: 12px; }
   .com-lab { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
   .com-lab textarea { font: inherit; font-size: 14px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px; resize: vertical; width: 100%; }
   #new-warn { color: #ff6b6b; font-weight: 700; }
   #new-warn:empty { display: none; }
+  .lrow { display: flex; gap: 10px; flex: 1; min-height: 0; }
+  #reflist { flex: 0 0 auto; width: 96px; overflow: auto; background: #fff; color: var(--ink); border: 1px solid var(--line);
+             border-radius: 4px; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+  #reflist button { all: unset; box-sizing: border-box; display: block; cursor: pointer; padding: 7px 12px; border-radius: 999px;
+                    border: 1px solid transparent; font-size: 14px; color: var(--ink); }
+  #reflist button:hover { background: #fff3e3; }
+  #reflist button.on { background: #ffe3bf; border-color: #ffc58a; font-weight: 700; }
+  #reflist button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  @media (max-width: 600px) { #reflist { max-height: 50vh; } }
+  /* listes déroulantes : ligne sélectionnée en orange clair (au lieu du gris) */
+  select option:checked, select option:hover { background: #ffe3bf linear-gradient(#ffe3bf, #ffe3bf); color: #1f2933; }
 </style>
 </head>
 <body>
@@ -303,12 +315,13 @@
   <section id="left">
   <div class="tabs"><h2 id="listTitle">Liste des factures</h2><button id="listAlt" class="linklike" type="button">Liste des avoirs</button></div>
   <div class="filters">
-    <label>Référence <select id="ref"></select></label>
     <label>Année <select id="year"></select></label>
     <label>Période du <input id="f_from" type="date"></label>
     <label>au <input id="f_to" type="date"></label>
     <span id="msg"></span>
   </div>
+  <div class="lrow">
+  <div id="reflist" role="listbox" aria-label="Référence"></div>
   <div class="wrap">
     <table>
       <thead><tr>
@@ -320,6 +333,7 @@
       <tbody id="rows"></tbody>
       <tfoot id="foot"></tfoot>
     </table>
+  </div>
   </div>
   </section>
   <div id="right">
@@ -456,6 +470,7 @@ const CFG = {
        list: "Liste des avoirs", numLabel: "N° Avoir", metaLabel: "Avoir N°", docTitle: "AVOIR", newTitle: "Nouvel avoir",
        nameFld: "Avoir", created: "Avoir créé", empty: "Aucun avoir pour cette période." }
 };
+let refFilter = "";     // référence sélectionnée dans la liste de gauche ("" = Toutes)
 let listMode = "f";     // liste affichée : "f" factures, "a" avoirs
 let dataF = [], dataA = [];
 let data = [];          // [{id, kind, ref, d, num, montant}] — liste affichée
@@ -488,7 +503,10 @@ grist.onRecords(async records => {
 });
 
 function refreshFilters() {
-  refreshSelect("ref", [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })), "Toutes");
+  const vals = [...new Set(data.map(r => String(r.ref)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true }));
+  if (refFilter && !vals.includes(refFilter)) refFilter = "";
+  $("reflist").innerHTML = ["", ...vals].map(v =>
+    `<button type="button" role="option" class="${v === refFilter ? "on" : ""}" aria-selected="${v === refFilter}" data-v="${esc2(v)}">${v === "" ? "Toutes" : esc2(v)}</button>`).join("");
   refreshSelect("year", [...new Set(data.filter(r => r.d).map(r => r.d.getUTCFullYear()))].sort((a, b) => b - a).map(String), "Toutes");
 }
 
@@ -523,7 +541,13 @@ function refreshSelect(id, values, allLabel) {
   if (values.includes(keep)) sel.value = keep;
 }
 
-$("ref").onchange = $("year").onchange = render;
+$("year").onchange = render;
+$("reflist").addEventListener("click", e => {
+  const b = e.target.closest("button[data-v]"); if (!b) return;
+  refFilter = b.dataset.v;
+  $("reflist").querySelectorAll("button").forEach(x => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-selected", on); });
+  render();
+});
 $("f_from").oninput = $("f_to").oninput = render;
 $("sort").onclick = () => { desc = !desc; render(); };
 
@@ -1443,7 +1467,7 @@ function paperHtml(inv, loc, lines) {
 }
 
 function render() {
-  const rf = $("ref").value, y = $("year").value;
+  const rf = refFilter, y = $("year").value;
   const day = v => { if (!v) return null; const [yy, mm, dd] = v.split("-").map(Number); return Date.UTC(yy, mm - 1, dd) / 1000; };
   const from = day($("f_from").value), to = day($("f_to").value);      // champ vide = pas de limite
   const rows = data
