@@ -418,7 +418,7 @@
     <label>au <input id="p_to" type="date"></label>
   </div>
   <div class="wrap"><table>
-    <thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
+    <thead><tr><th>REF</th><th>Date</th><th class="num">Montant payé</th><th class="num">TVA à payer</th><th class="num">Montant HT</th><th>Commentaires</th></tr></thead>
     <tbody id="pay-rows"></tbody>
     <tfoot id="pay-foot"></tfoot>
   </table></div>
@@ -978,7 +978,7 @@ $("btnFitW").onclick = () => setFit("w");
 $("btnFitH").onclick = () => setFit("h");
 
 // ---------- Paiements ----------
-let payRows = [], payFocus = null, payShown = { rows: [], total: 0, refs: [] }, payRefSel = new Set(), payNames = new Map();
+let payRows = [], payFocus = null, payShown = { rows: [], total: 0, refs: [] }, payRefSel = new Set(), payNames = new Map(), payLoc = new Map();
 async function loadPay() {
   const t = await grist.docApi.fetchTable("Paiements");
   const target = await refTarget("Paiements", "REF");     // REF est une colonne Référence : on affiche le texte
@@ -990,7 +990,8 @@ async function loadPay() {
   try {   // noms commerciaux (pour le sous-titre de l'impression)
     const lt = await grist.docApi.fetchTable("Locaux");
     payNames = new Map(lt.id.map((id, i) => [String(lt.REF?.[i]), lt.Nom_Commercial?.[i] ?? ""]));
-  } catch (e) { payNames = new Map(); }
+    payLoc = new Map(lt.id.map((id, i) => [String(lt.REF?.[i]), { tva: !!lt.TVA?.[i], taux: lt.Taux_TVA?.[i] }]));
+  } catch (e) { payNames = new Map(); payLoc = new Map(); }
   buildPayRefs([...new Set(payRows.map(r => r.ref).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })));
   renderPay();
 }
@@ -1045,13 +1046,13 @@ async function savePadd() {
   finally { $("padd-save").disabled = false; }
 }
 function printPay() {
-  const { rows, total, refs } = payShown;
+  const { rows, total, totTva, totHt, refs } = payShown;
   const sub = refs.map(r => { const n = payNames.get(r) || ""; return `<div class="pp-sub">${esc2(r)}${n ? " - " + esc2(n) : ""}</div>`; }).join("");
-  const body = rows.length ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num">${euro.format(r.m)}</td><td>${esc2(r.c)}</td></tr>`).join("")
-                           : '<tr><td colspan="4">Aucun paiement.</td></tr>';
+  const body = rows.length ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num">${euro.format(r.m)}</td><td class="num">${euro.format(r.tva)}</td><td class="num">${euro.format(r.ht)}</td><td>${esc2(r.c)}</td></tr>`).join("")
+                           : '<tr><td colspan="6">Aucun paiement.</td></tr>';
   $("pay-print-sheet").innerHTML = `<div class="pp-title">Liste des paiements</div>${sub}
-    <table class="pp-table pay"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant</th><th>Commentaires</th></tr></thead>
-    <tbody>${body}</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">${euro.format(total)}</td><td></td></tr></tfoot></table>`;
+    <table class="pp-table pay"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant payé</th><th class="num">TVA à payer</th><th class="num">Montant HT</th><th>Commentaires</th></tr></thead>
+    <tbody>${body}</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">${euro.format(total)}</td><td class="num">${euro.format(totTva)}</td><td class="num">${euro.format(totHt)}</td><td></td></tr></tfoot></table>`;
   const old = document.title, done = () => { document.body.classList.remove("pp"); document.title = old; };
   document.title = "Liste des paiements";
   document.body.classList.add("pp");
@@ -1065,19 +1066,26 @@ $("padd-cancel").onclick = closePadd;
 $("padd-save").onclick = savePadd;
 $("ov-padd").addEventListener("click", e => { if (e.target === $("ov-padd")) closePadd(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-padd").classList.contains("open")) closePadd(); });
+// Montant payé = TTC : HT = payé / (1 + taux) ; TVA à payer = payé − HT. Taux = Taux_TVA du local, 0 si le local n'a pas de TVA.
+function payCalc(r) {
+  const L = payLoc.get(r.ref), t = L && L.tva ? (Number(L.taux) || 0) : 0;
+  const tva = r2c(r.m - r.m / (1 + t));
+  return { tva, ht: r2c(r.m - tva) };
+}
 function renderPay() {
   const sel = payRefSel;
   const day = v => { if (!v) return null; const [y, m, d] = v.split("-").map(Number); return Date.UTC(y, m - 1, d) / 1000; };
   const from = day($("p_from").value), to = day($("p_to").value);       // champ vide = pas de limite
   const rows = payRows.filter(r => (!sel.size || sel.has(r.ref)) && (from === null || (r.d !== null && r.d >= from)) &&
                                    (to === null || (r.d !== null && r.d < to + 86400)))
-                      .sort((a, b) => (b.d ?? 0) - (a.d ?? 0));
+                      .sort((a, b) => (b.d ?? 0) - (a.d ?? 0)).map(r => ({ ...r, ...payCalc(r) }));
   $("pay-rows").innerHTML = rows.length
-    ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num nw">${euro.format(r.m)}</td><td class="cm">${esc2(r.c)}</td></tr>`).join("")
-    : '<tr><td colspan="4" class="empty">Aucun paiement.</td></tr>';
-  const total = Math.round(rows.reduce((a, r) => a + r.m, 0) * 100) / 100;
-  payShown = { rows, total, refs: [...sel].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })) };
-  $("pay-foot").innerHTML = `<tr><td colspan="2">Total</td><td class="num nw">${euro.format(total)}</td><td></td></tr>`;
+    ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num nw">${euro.format(r.m)}</td><td class="num nw">${euro.format(r.tva)}</td><td class="num nw">${euro.format(r.ht)}</td><td class="cm">${esc2(r.c)}</td></tr>`).join("")
+    : '<tr><td colspan="6" class="empty">Aucun paiement.</td></tr>';
+  const sum = k => r2c(rows.reduce((a, r) => a + r[k], 0));
+  const total = sum("m"), totTva = sum("tva"), totHt = sum("ht");
+  payShown = { rows, total, totTva, totHt, refs: [...sel].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })) };
+  $("pay-foot").innerHTML = `<tr><td colspan="2">Total</td><td class="num nw">${euro.format(total)}</td><td class="num nw">${euro.format(totTva)}</td><td class="num nw">${euro.format(totHt)}</td><td></td></tr>`;
 }
 function closePay() { $("ov-pay").classList.remove("open"); if (payFocus) payFocus.focus(); }
 $("btnPay").onclick = openPay;
