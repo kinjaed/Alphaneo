@@ -418,7 +418,7 @@
     <label>au <input id="p_to" type="date"></label>
   </div>
   <div class="wrap"><table>
-    <thead><tr><th>REF</th><th>Date</th><th class="num">Montant payé</th><th class="num">TVA à payer</th><th class="num">Montant HT</th><th>Commentaires</th></tr></thead>
+    <thead><tr><th>REF</th><th>Date</th><th class="num">Montant payé</th><th class="num">TVA à payer</th><th class="num">Montant à déclarer</th><th>Commentaires</th></tr></thead>
     <tbody id="pay-rows"></tbody>
     <tfoot id="pay-foot"></tfoot>
   </table></div>
@@ -1051,7 +1051,7 @@ function printPay() {
   const body = rows.length ? rows.map(r => `<tr><td class="nw">${esc2(r.ref)}</td><td class="nw">${r.d !== null ? fmtDate.format(new Date(r.d * 1000)) : ""}</td><td class="num">${euro.format(r.m)}</td><td class="num">${euro.format(r.tva)}</td><td class="num">${euro.format(r.ht)}</td><td>${esc2(r.c)}</td></tr>`).join("")
                            : '<tr><td colspan="6">Aucun paiement.</td></tr>';
   $("pay-print-sheet").innerHTML = `<div class="pp-title">Liste des paiements</div>${sub}
-    <table class="pp-table pay"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant payé</th><th class="num">TVA à payer</th><th class="num">Montant HT</th><th>Commentaires</th></tr></thead>
+    <table class="pp-table pay"><thead><tr><th>REF</th><th>Date</th><th class="num">Montant payé</th><th class="num">TVA à payer</th><th class="num">Montant à déclarer</th><th>Commentaires</th></tr></thead>
     <tbody>${body}</tbody><tfoot><tr><td colspan="2">Total</td><td class="num">${euro.format(total)}</td><td class="num">${euro.format(totTva)}</td><td class="num">${euro.format(totHt)}</td><td></td></tr></tfoot></table>`;
   const old = document.title, done = () => { document.body.classList.remove("pp"); document.title = old; };
   document.title = "Liste des paiements";
@@ -1066,11 +1066,13 @@ $("padd-cancel").onclick = closePadd;
 $("padd-save").onclick = savePadd;
 $("ov-padd").addEventListener("click", e => { if (e.target === $("ov-padd")) closePadd(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && $("ov-padd").classList.contains("open")) closePadd(); });
-// Montant payé = TTC : HT = payé / (1 + taux) ; TVA à payer = payé − HT. Taux = Taux_TVA du local, 0 si le local n'a pas de TVA.
+// Local avec TVA : Montant à déclarer = payé / (1 + Taux_TVA) et TVA à payer = payé − Montant à déclarer.
+// Local sans TVA : Montant à déclarer = 0 et TVA à payer = 0.
 function payCalc(r) {
-  const L = payLoc.get(r.ref), t = L && L.tva ? (Number(L.taux) || 0) : 0;
-  const tva = r2c(r.m - r.m / (1 + t));
-  return { tva, ht: r2c(r.m - tva) };
+  const L = payLoc.get(r.ref);
+  if (!L || !L.tva) return { tva: 0, ht: 0 };
+  const t = Number(L.taux) || 0, ht = r2c(r.m / (1 + t));
+  return { tva: r2c(r.m - ht), ht };
 }
 function renderPay() {
   const sel = payRefSel;
